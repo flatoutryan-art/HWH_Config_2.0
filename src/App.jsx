@@ -1,1970 +1,2212 @@
-import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ChevronRight, ChevronLeft, Check, Info, Trash2, RotateCcw, MousePointer, Move } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
-// --- BRAND --------------------------------------------------------------------
-const B = {
-  dark:"#251917", orange:"#D96339", gold:"#EBBD46",
-  cream:"#F5F0E8", parchment:"#EDE8DC", white:"#FFFFFF",
+// ─── Responsive hook ──────────────────────────────────────────────────────────
+function useWindowSize() {
+  const [size, setSize] = useState({ w: window.innerWidth, h: window.innerHeight });
+  useEffect(() => {
+    const fn = () => setSize({ w: window.innerWidth, h: window.innerHeight });
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
+  return size;
+}
+
+const _S = Math.random().toString(36).slice(2,7);
+const C = {
+  black:  "#2A1D16",
+  orange: "#D96339",
+  gold:   "#A8700A",
+  white:  "#FFFFFF",
+  darkbg: "#F2EEE8",
+  panel:  "#FAFAF7",
+  border: "#E0D8CE",
+  text:   "#2C211A",
+  sub:    "#7A6658",
 };
 
-const GRID_COLS  = 60;
-const GRID_ROWS  = 30;
-const FLOOR_ROW  = 20;
-const HINGE_PRICE  = 125;
-const RUNNER_PRICE = 350;
-const LABOUR_MULT  = { melamine: 4.0, solid_wood: 6.5 };
+const LOGO_SRC = "data:image/png;base64,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";
 
-function doorCount(cab) {
-  if (cab.cat === "Tall") return 4;
-  if (cab.cat === "Wall" && cab.wC < 9) return 1;
-  return 2;
+const WALL_H_MM  = 2750;
+const KICK_H_MM   = 150;
+const FILLER_H_MM = 150;
+const FLOOR_H_MM  = 870;
+const UPPER_H_MM  = 720;
+const UPPER_TOTAL = FILLER_H_MM + UPPER_H_MM;
+const TALL_H_MM   = FILLER_H_MM + 2100 + KICK_H_MM;
+const SNAP_MM    = 100;
+
+// Corner rotation: 0=top-left, 1=top-right, 2=bottom-right, 3=bottom-left
+const CORNER_ROTATIONS = ["↖ Top-Left","↗ Top-Right","↘ Bottom-Right","↙ Bottom-Left"];
+
+// ─── Project-level materials ───────────────────────────────────────────────────
+const COUNTERTOP_TYPES = [
+  { id:"marble",   label:"Marble",   subtitle:"Natural / Engineered stone" },
+  { id:"quartz",   label:"Quartz",   subtitle:"Engineered stone — consistent & durable" },
+  { id:"melamine", label:"Formica",  subtitle:"Laminate board surface — wide colour range" },
+];
+
+const COUNTERTOP_COLOURS = [
+  { id:"ct-white",  label:"White / Off-white",    color:"#F5F2EC", pattern:null,     types:["marble","melamine"] },
+  { id:"ct-grey",   label:"Light Grey / Concrete",color:"#C8C8C4", pattern:"concrete",types:["marble","melamine"] },
+  { id:"ct-black",  label:"Black / Nero",          color:"#1E1E1E", pattern:null,     types:["marble","melamine"] },
+  { id:"ct-marble", label:"Marble / Stone look",   color:"#EAE6E0", pattern:"marble", types:["marble"] },
+  { id:"ct-q-iceberg",       label:"Iceberg",          color:"#F8F8F6", pattern:"quartz-white",    types:["quartz"] },
+  { id:"ct-q-magnolia",      label:"Magnolia",         color:"#F5F0E8", pattern:"quartz-cream",    types:["quartz"] },
+  { id:"ct-q-macadamia",     label:"Macadamia",        color:"#E8E0CC", pattern:"quartz-sparkle",  types:["quartz"] },
+  { id:"ct-q-sparkle",       label:"Sparkle",          color:"#ECEAE4", pattern:"quartz-sparkle",  types:["quartz"] },
+  { id:"ct-q-stratus",       label:"Stratus",          color:"#F2F0E8", pattern:"quartz-white",    types:["quartz"] },
+  { id:"ct-q-bianco-cloud",  label:"Bianco Cloud",     color:"#F4F2EE", pattern:"quartz-white",    types:["quartz"] },
+  { id:"ct-q-aurelia",       label:"Aurelia",          color:"#F0EDE6", pattern:"quartz-white",    types:["quartz"] },
+  { id:"ct-q-noble-white",   label:"Noble White",      color:"#F6F4F2", pattern:"quartz-vein-fine",types:["quartz"] },
+  { id:"ct-q-beach",         label:"Beach",            color:"#D8CEBC", pattern:"quartz-stone",    types:["quartz"] },
+  { id:"ct-q-dazzle",        label:"Dazzle",           color:"#DDD8CC", pattern:"quartz-stone",    types:["quartz"] },
+  { id:"ct-q-misty-pearl",   label:"Misty Pearl",      color:"#D4D0C4", pattern:"quartz-stone",    types:["quartz"] },
+  { id:"ct-q-dusty-stone",   label:"Dusty Stone",      color:"#C8C4B8", pattern:"quartz-stone",    types:["quartz"] },
+  { id:"ct-q-cremalat",      label:"Cremalat",         color:"#C8C4B0", pattern:"quartz-stone",    types:["quartz"] },
+  { id:"ct-q-bianco-sup",    label:"Bianco Supremo",   color:"#EEE8DC", pattern:"quartz-vein-fine",types:["quartz"] },
+  { id:"ct-q-platinum",      label:"Platinum",         color:"#A8A8A4", pattern:"quartz-sparkle-grey",types:["quartz"] },
+  { id:"ct-q-grey-river",    label:"Grey River",       color:"#B8B4AC", pattern:"quartz-sparkle-grey",types:["quartz"] },
+  { id:"ct-q-slate",         label:"Slate",            color:"#6E7068", pattern:"quartz-grey",     types:["quartz"] },
+  { id:"ct-q-charcoal-grey", label:"Charcoal Grey",    color:"#5A5C54", pattern:"quartz-grey",     types:["quartz"] },
+  { id:"ct-q-fawn",          label:"Fawn",             color:"#9A9484", pattern:"quartz-grey",     types:["quartz"] },
+  { id:"ct-q-grigio-cem",    label:"Grigio Cemento",   color:"#888882", pattern:"quartz-cement",   types:["quartz"] },
+  { id:"ct-q-wrought-iron",  label:"Wrought Iron",     color:"#7A7870", pattern:"quartz-cement",   types:["quartz"] },
+  { id:"ct-q-pietra-tempesta",label:"Pietra Tempesta", color:"#707070", pattern:"quartz-grey",     types:["quartz"] },
+  { id:"ct-q-thunder",       label:"Thunder",          color:"#6A6860", pattern:"quartz-cement",   types:["quartz"] },
+  { id:"ct-q-galaxy",        label:"Galaxy",           color:"#1A1A1A", pattern:"quartz-sparkle-dark",types:["quartz"] },
+  { id:"ct-q-nero",          label:"Nero",             color:"#161616", pattern:"quartz-black",    types:["quartz"] },
+  { id:"ct-q-calacatta-fine",label:"Calacatta Fine",   color:"#F4F2EE", pattern:"quartz-vein-fine",types:["quartz"] },
+  { id:"ct-q-bianco-venato", label:"Bianco Venato",    color:"#F2F0EC", pattern:"quartz-vein-fine",types:["quartz"] },
+  { id:"ct-q-calacatta-gold",label:"Calacatta Gold",   color:"#F5F0E4", pattern:"quartz-vein-gold",types:["quartz"] },
+  { id:"ct-q-blanco-steel",  label:"Blanco Steel",     color:"#E8E4E0", pattern:"quartz-vein-fine",types:["quartz"] },
+  { id:"ct-q-blanco-bronze", label:"Blanco Bronze",    color:"#F0EDE4", pattern:"quartz-vein-bronze",types:["quartz"] },
+  { id:"ct-q-blanco-pewter", label:"Blanco Pewter",    color:"#E0DCDA", pattern:"quartz-vein-grey",types:["quartz"] },
+  { id:"ct-q-whisper",       label:"Whisper",          color:"#F6F4F2", pattern:"quartz-vein-fine",types:["quartz"] },
+  { id:"ct-q-bianco-stat",   label:"Bianco Statuario", color:"#F0EEEA", pattern:"quartz-vein-fine",types:["quartz"] },
+  { id:"ct-q-bianco-calac",  label:"Bianco Calacatta", color:"#F2F0EC", pattern:"quartz-vein-fine",types:["quartz"] },
+  { id:"ct-q-nero-venato",   label:"Nero Venato",      color:"#1C1C1C", pattern:"quartz-vein-dark",types:["quartz"] },
+  { id:"ct-q-calacatta-zara",label:"Calacatta Zara",   color:"#111210", pattern:"quartz-vein-dark",types:["quartz"] },
+  { id:"ct-q-bianco-carb",   label:"Bianco Carbonio",  color:"#F0EEE8", pattern:"quartz-vein-fine",types:["quartz"] },
+  { id:"ct-f-walnut",        label:"Walnut Oak",       color:"#7A5C3C", pattern:"formica-wood-warm",  types:["melamine"] },
+  { id:"ct-f-ash",           label:"Ash Grey",         color:"#B8AFA0", pattern:"formica-wood-ash",   types:["melamine"] },
+  { id:"ct-f-ebony",         label:"Ebony Grain",      color:"#2E2A28", pattern:"formica-wood-dark",  types:["melamine"] },
+  { id:"ct-f-matte-black",   label:"Matte Black",      color:"#1E1E20", pattern:"formica-solid-black",types:["melamine"] },
+  { id:"ct-f-white-sparkle", label:"White Sparkle",    color:"#EEECEA", pattern:"formica-sparkle-wht",types:["melamine"] },
+  { id:"ct-f-grey-slate",    label:"Grey Slate",       color:"#B0B4B8", pattern:"formica-slate",      types:["melamine"] },
+  { id:"ct-f-salt-pepper",   label:"Salt & Pepper",    color:"#C0BCBA", pattern:"formica-speckle-lt", types:["melamine"] },
+  { id:"ct-f-blue-granite",  label:"Blue Granite",     color:"#484C54", pattern:"formica-speckle-dk", types:["melamine"] },
+  { id:"ct-f-emperador",     label:"Emperador Dark",   color:"#2A2420", pattern:"formica-emperador",  types:["melamine"] },
+  { id:"ct-f-grey-stone",    label:"Grey Stone",       color:"#A4A8AC", pattern:"formica-stone-grey", types:["melamine"] },
+];
+
+const CARCASS_TYPES_MATERIAL = [
+  { id:"solid",    label:"Solid Wood",  subtitle:"Hardwood carcass — premium" },
+  { id:"melamine", label:"Melamine",    subtitle:"MDF / chipboard laminate"   },
+];
+
+const DRAWER_H_MM = 870; // same footprint as base, but drawn with drawer stacks
+
+// Floor-standing types that get a kick plate
+const FLOOR_TYPES = ["base","drawer","tall-single","tall-double","corner"];
+
+const CARCASS_TYPES = [
+  // Base units
+  { id:"base-450",         type:"base",        label:"Base Unit",          width:450, height:FLOOR_H_MM, desc:"450mm",   icon:"▬", bg:"#3D2A1F" },
+  { id:"base-600",         type:"base",        label:"Base Unit",          width:600, height:FLOOR_H_MM, desc:"600mm",   icon:"▬", bg:"#3D2A1F" },
+  { id:"base-750",         type:"base",        label:"Base Unit",          width:750, height:FLOOR_H_MM, desc:"750mm",   icon:"▬", bg:"#3D2A1F" },
+  { id:"base-800",         type:"base",        label:"Base Unit",          width:800, height:FLOOR_H_MM, desc:"800mm",   icon:"▬", bg:"#3D2A1F" },
+  { id:"base-900",         type:"base",        label:"Base Unit",          width:900, height:FLOOR_H_MM, desc:"900mm",   icon:"▬", bg:"#3D2A1F" },
+  // Drawer units
+  { id:"drawer-450",       type:"drawer",      label:"Drawer Unit",        width:450, height:DRAWER_H_MM,desc:"450mm",   icon:"▤", bg:"#3A2A20" },
+  { id:"drawer-600",       type:"drawer",      label:"Drawer Unit",        width:600, height:DRAWER_H_MM,desc:"600mm",   icon:"▤", bg:"#3A2A20" },
+  { id:"drawer-750",       type:"drawer",      label:"Drawer Unit",        width:750, height:DRAWER_H_MM,desc:"750mm",   icon:"▤", bg:"#3A2A20" },
+  { id:"drawer-800",       type:"drawer",      label:"Drawer Unit",        width:800, height:DRAWER_H_MM,desc:"800mm",   icon:"▤", bg:"#3A2A20" },
+  { id:"drawer-900",       type:"drawer",      label:"Drawer Unit",        width:900, height:DRAWER_H_MM,desc:"900mm",   icon:"▤", bg:"#3A2A20" },
+  // Wall cabinets (no kick plate)
+  { id:"upper-450",        type:"upper",       label:"Wall Cabinet",       width:450, height:UPPER_TOTAL, desc:"450mm",   icon:"▭", bg:"#2A1D16" },
+  { id:"upper-600",        type:"upper",       label:"Wall Cabinet",       width:600, height:UPPER_TOTAL, desc:"600mm",   icon:"▭", bg:"#2A1D16" },
+  { id:"upper-750",        type:"upper",       label:"Wall Cabinet",       width:750, height:UPPER_TOTAL, desc:"750mm",   icon:"▭", bg:"#2A1D16" },
+  { id:"upper-800",        type:"upper",       label:"Wall Cabinet",       width:800, height:UPPER_TOTAL, desc:"800mm",   icon:"▭", bg:"#2A1D16" },
+  { id:"upper-900",        type:"upper",       label:"Wall Cabinet",       width:900, height:UPPER_TOTAL, desc:"900mm",   icon:"▭", bg:"#2A1D16" },
+  // Tall — single full-height door (1 door, 3 hinges)
+  { id:"tall-single-450",  type:"tall-single", label:"Tall — Single Door", width:450, height:TALL_H_MM,  desc:"450mm · 1 door", icon:"▮", bg:"#321E14" },
+  { id:"tall-single-600",  type:"tall-single", label:"Tall — Single Door", width:600, height:TALL_H_MM,  desc:"600mm · 1 door", icon:"▮", bg:"#321E14" },
+  { id:"tall-single-750",  type:"tall-single", label:"Tall — Single Door", width:750, height:TALL_H_MM,  desc:"750mm · 1 door", icon:"▮", bg:"#321E14" },
+  { id:"tall-single-800",  type:"tall-single", label:"Tall — Single Door", width:800, height:TALL_H_MM,  desc:"800mm · 1 door", icon:"▮", bg:"#321E14" },
+  { id:"tall-single-900",  type:"tall-single", label:"Tall — Single Door", width:900, height:TALL_H_MM,  desc:"900mm · 1 door", icon:"▮", bg:"#321E14" },
+  // Tall — double stacked doors (2 doors, 4 hinges total — 2 per door)
+  { id:"tall-double-450",  type:"tall-double", label:"Tall — Double Door",  width:450, height:TALL_H_MM,  desc:"450mm · 2 doors", icon:"▯", bg:"#2C1C12" },
+  { id:"tall-double-600",  type:"tall-double", label:"Tall — Double Door",  width:600, height:TALL_H_MM,  desc:"600mm · 2 doors", icon:"▯", bg:"#2C1C12" },
+  { id:"tall-double-750",  type:"tall-double", label:"Tall — Double Door",  width:750, height:TALL_H_MM,  desc:"750mm · 2 doors", icon:"▯", bg:"#2C1C12" },
+  { id:"tall-double-800",  type:"tall-double", label:"Tall — Double Door",  width:800, height:TALL_H_MM,  desc:"800mm · 2 doors", icon:"▯", bg:"#2C1C12" },
+  { id:"tall-double-900",  type:"tall-double", label:"Tall — Double Door",  width:900, height:TALL_H_MM,  desc:"900mm · 2 doors", icon:"▯", bg:"#2C1C12" },
+  // Corner units
+  { id:"corner-900",       type:"corner",      label:"Corner Unit",        width:900, height:FLOOR_H_MM, desc:"900×900", icon:"◣", bg:"#2D1C13" },
+];
+
+const APPLIANCE_TYPES = [
+  { id:"appl-washer",     type:"appliance", label:"Washing Machine", width:600,  height:870,  icon:"⊙", desc:"600mm · floor", bg:"#2E3C44" },
+  { id:"appl-dryer",      type:"appliance", label:"Tumble Dryer",    width:600,  height:870,  icon:"↻", desc:"600mm · floor", bg:"#2E3C44" },
+  { id:"appl-dishwasher", type:"appliance", label:"Dishwasher",      width:600,  height:870,  icon:"≡", desc:"600mm · floor", bg:"#2E3C44" },
+  { id:"appl-oven",       type:"appliance", label:"Oven",            width:600,  height:870,  icon:"▣", desc:"600mm · floor", bg:"#2E3C44" },
+  { id:"appl-fridge-s",   type:"appliance", label:"Fridge (Single)", width:600,  height:1800, icon:"❄", desc:"600mm · tall",  bg:"#263040" },
+  { id:"appl-fridge-d",   type:"appliance", label:"Fridge (Double)", width:900,  height:1800, icon:"❄", desc:"900mm · tall",  bg:"#263040" },
+];
+
+// ─── Hinges ───────────────────────────────────────────────────────────────────
+const HINGES = [
+  { id:"hinge-soft",  label:"Soft-Close Hinge",  subtitle:"Dampened soft-close action",  icon:"⬡" },
+];
+const DEFAULT_HINGE = "hinge-soft";
+
+// Hinge count rules — returns { doors, hingesPerDoor, total }
+function hingeCount(unit) {
+  const t = unit.type;
+  if (t === "drawer")      return { doors:0, hingesPerDoor:0, total:0 };
+  if (t === "base")        return { doors: unit.width >= 600 ? 2 : 1, hingesPerDoor:2, total: unit.width >= 600 ? 4 : 2 };
+  if (t === "upper")       return { doors: unit.width >= 600 ? 2 : 1, hingesPerDoor:2, total: unit.width >= 600 ? 4 : 2 };
+  if (t === "corner")      return { doors:1, hingesPerDoor:2, total:2 };
+  if (t === "tall-single") return { doors:1, hingesPerDoor:3, total:3 };   // 1 tall door needs 3 hinges
+  if (t === "tall-double") return { doors:2, hingesPerDoor:2, total:4 };   // 2 stacked doors, 2 hinges each
+  return { doors:0, hingesPerDoor:0, total:0 };
 }
-function runnerPairs(cab) { return cab.isDrawer ? 3 : 0; } // 3 drawer boxes per unit = 3 runner pairs
 
-const PM = {
-  cabinets: {
-    // -- FLOOR --------------------------------------------------------
-    floor_450:   {label:"Floor 450",   cat:"Floor",  price:650, wMm:450,  wC:4,  hC:9,  color:"#C8BA9E", isDrawer:false},
-    floor_600:   {label:"Floor 600",   cat:"Floor",  price:700, wMm:600,  wC:6,  hC:9,  color:"#C8BA9E", isDrawer:false},
-    floor_750:   {label:"Floor 750",   cat:"Floor",  price:750, wMm:750,  wC:7,  hC:9,  color:"#C8BA9E", isDrawer:false},
-    floor_900:   {label:"Floor 900",   cat:"Floor",  price:800, wMm:900,  wC:9,  hC:9,  color:"#C8BA9E", isDrawer:false},
-    floor_1200:  {label:"Floor 1200",  cat:"Floor",  price:850, wMm:1200, wC:12, hC:9,  color:"#C8BA9E", isDrawer:false},
-    // -- DRAWER -------------------------------------------------------
-    drawer_450:  {label:"Drawer 450",  cat:"Floor",  price:1050, wMm:450,  wC:4,  hC:9,  color:"#BEB09A", isDrawer:true },
-    drawer_600:  {label:"Drawer 600",  cat:"Floor",  price:1150, wMm:600,  wC:6,  hC:9,  color:"#BEB09A", isDrawer:true },
-    drawer_750:  {label:"Drawer 750",  cat:"Floor",  price:1450, wMm:750,  wC:7,  hC:9,  color:"#BEB09A", isDrawer:true },
-    drawer_900:  {label:"Drawer 900",  cat:"Floor",  price:1650, wMm:900,  wC:9,  hC:9,  color:"#BEB09A", isDrawer:true },
-    drawer_1200: {label:"Drawer 1200", cat:"Floor",  price:1950, wMm:1200, wC:12, hC:9,  color:"#BEB09A", isDrawer:true },
-    // -- WALL ---------------------------------------------------------
-    wall_450:    {label:"Wall 450",    cat:"Wall",   price:650, wMm:450,  wC:4,  hC:7,  color:"#D8D0C0", isDrawer:false},
-    wall_600:    {label:"Wall 600",    cat:"Wall",   price:700, wMm:600,  wC:6,  hC:7,  color:"#D8D0C0", isDrawer:false},
-    wall_750:    {label:"Wall 750",    cat:"Wall",   price:750, wMm:750,  wC:7,  hC:7,  color:"#D8D0C0", isDrawer:false},
-    wall_900:    {label:"Wall 900",    cat:"Wall",   price:800, wMm:900,  wC:9,  hC:7,  color:"#D8D0C0", isDrawer:false},
-    wall_1200:   {label:"Wall 1200",   cat:"Wall",   price:850, wMm:1200, wC:12, hC:7,  color:"#D8D0C0", isDrawer:false},
-    // -- TALL ---------------------------------------------------------
-    tall_450:    {label:"Tall 450",    cat:"Tall",   price:1150, wMm:450,  wC:4,  hC:27, color:"#BCA882", isDrawer:false},
-    tall_600:    {label:"Tall 600",    cat:"Tall",   price:1450, wMm:600,  wC:6,  hC:27, color:"#BCA882", isDrawer:false},
-    tall_750:    {label:"Tall 750",    cat:"Tall",   price:1950,wMm:750,  wC:7,  hC:27, color:"#BCA882", isDrawer:false},
-    tall_pantry: {label:"Tall Pantry", cat:"Tall",   price:1450, wMm:600,  wC:6,  hC:27, color:"#BCA882", isDrawer:false},
-    tall_broom:  {label:"Tall Broom",  cat:"Tall",   price:1450, wMm:600,  wC:6,  hC:27, color:"#BCA882", isDrawer:false},
-    tall_1200:   {label:"Tall 1200",   cat:"Tall",   price:2450,wMm:1200, wC:12, hC:27, color:"#BCA882", isDrawer:false},
-    // -- CORNER -------------------------------------------------------
-    corner_450:  {label:"Corner 450",  cat:"Corner", price:1450, wMm:450,  wC:4,  hC:9,  color:"#B0A08A", isDrawer:false},
-    corner_600:  {label:"Corner 600",  cat:"Corner", price:1450, wMm:600,  wC:6,  hC:9,  color:"#B0A08A", isDrawer:false},
-    corner_750:  {label:"Corner 750",  cat:"Corner", price:1550, wMm:750,  wC:7,  hC:9,  color:"#B0A08A", isDrawer:false},
-    corner_lazy: {label:"Corner L.S.", cat:"Corner", price:1650, wMm:900,  wC:9,  hC:9,  color:"#B0A08A", isDrawer:false},
-    corner_blind:{label:"Corner Blind",cat:"Corner", price:4800, wMm:600,  wC:6,  hC:9,  color:"#B0A08A", isDrawer:false},
-    corner_1200: {label:"Corner 1200", cat:"Corner", price:1950, wMm:1200, wC:12, hC:9,  color:"#B0A08A", isDrawer:false},
-  },
+// ─── Runners ─────────────────────────────────────────────────────────────────
+const RUNNERS = [
+  { id:"runner-soft", label:"Soft-Close Runner", subtitle:"Dampened soft-close action",   icon:"⇒" },
+];
+const DEFAULT_RUNNER = "runner-soft";
+
+// Drawer count per unit
+function drawerCount(unit) {
+  if (unit.type !== "drawer") return 0;
+  return unit.width <= 450 ? 3 : 4;
+}
+
+const FINISHES = [
+  { id:"matte-folkstone",  label:"Folkstone Grey",  color:"#C4D0D4", type:"matte" },
+  { id:"matte-white",      label:"Matte White",     color:"#F5F5F0", type:"matte" },
+  { id:"matte-cream",      label:"Matte Cream",     color:"#EDE8DC", type:"matte" },
+  { id:"matte-sage",       label:"Sage Green",      color:"#8A9E85", type:"matte" },
+  { id:"matte-charcoal",   label:"Charcoal",        color:"#4A4A4A", type:"matte" },
+  { id:"matte-navy",       label:"Navy Blue",       color:"#2C3E6B", type:"matte" },
+  { id:"matte-clay",       label:"Clay",            color:"#C4724A", type:"matte" },
+  { id:"matte-dustpink",   label:"Dusty Rose",      color:"#C9A49A", type:"matte" },
+  { id:"matte-slate",      label:"Slate Grey",      color:"#7A8A96", type:"matte" },
+  { id:"gloss-iceberg",    label:"Iceberg White",   color:"#EAF0F0", type:"gloss" },
+  { id:"gloss-cappuccino", label:"Cappuccino",      color:"#C8C4A8", type:"gloss" },
+  { id:"gloss-dunblane",   label:"Dunblane Grey",   color:"#9A9C9C", type:"gloss" },
+  { id:"gloss-storm",      label:"Storm Grey",      color:"#4A5158", type:"gloss" },
+  { id:"gloss-caraz",      label:"Caraz",           color:"#7A9488", type:"gloss" },
+  { id:"gloss-petrol",     label:"Petrol Blue",     color:"#1E3A50", type:"gloss" },
+  { id:"gloss-white",      label:"Gloss White",     color:"#FAFAFA", type:"gloss" },
+  { id:"gloss-black",      label:"Gloss Black",     color:"#1A1A1A", type:"gloss" },
+  { id:"gloss-champ",      label:"Champagne",       color:"#D4B896", type:"gloss" },
+  { id:"wood-shale",       label:"Shale Oak",       color:"#C0B09C", type:"wood"  },
+  { id:"wood-treviso",     label:"Treviso",         color:"#9A9084", type:"wood"  },
+  { id:"wood-alegria",     label:"Alegria",         color:"#6E5C48", type:"wood"  },
+  { id:"wood-cherry",      label:"Harvard Cherry",  color:"#A07868", type:"wood"  },
+  { id:"wood-oak",         label:"Natural Oak",     color:"#C8A870", type:"wood"  },
+  { id:"wood-walnut",      label:"Dark Walnut",     color:"#5C3D2E", type:"wood"  },
+  { id:"wood-ash",         label:"Ash Grey",        color:"#A8A8A0", type:"wood"  },
+  { id:"wood-pine",        label:"Light Pine",      color:"#DEC48A", type:"wood"  },
+];
+
+const HARDWARE = [
+  { id:"none",   label:"Push-Open",    color:null      },
+  { id:"gold",   label:"Brushed Gold", color:"#C9A84C" },
+  { id:"silver", label:"Chrome Silver",color:"#C0C0C0" },
+  { id:"black",  label:"Matte Black",  color:"#2A2A2A" },
+  { id:"bronze", label:"Oil Bronze",   color:"#614E3A" },
+];
+
+
+// ─── Pricing Catalog (ingested from hwh_pricing_catalog.xlsx) ─────────────────
+const PRICING = {
+  // 1. Carcass units — price per unit (R)
   carcass: {
-    melamine:   {label:"Melamine Board", matType:"melamine",   color:"#F0EDE5"},
-    solid_wood: {label:"Solid Wood",     matType:"solid_wood", color:"#C8924A"},
+    "base-450": 450,   "base-600": 550,   "base-750": 650,  "base-800": 720,  "base-900": 820,
+    "drawer-450": 950, "drawer-600": 1150,"drawer-750":1300, "drawer-800": 1450,"drawer-900":1600,
+    "upper-450": 450,  "upper-600": 550,  "upper-750": 650,  "upper-800": 720,  "upper-900": 820,
+    "tall-single-450": 1150, "tall-single-600": 1450, "tall-single-750":1700, "tall-single-800": 1950, "tall-single-900":2100,
+    "tall-double-450": 1150, "tall-double-600": 1450, "tall-double-750":1700, "tall-double-800": 1950, "tall-double-900":2100,
+    "corner-900": 1650,
   },
   countertop: {
-    // -- FORMICA (laminate) -- ppm 950 -----------------------------
-    formica_white:   {label:"Formica White",    group:"Formica", ppm:1050,  color:"#F4F2EE"},
-    formica_ivory:   {label:"Formica Ivory",    group:"Formica", ppm:1050,  color:"#EDE6D5"},
-    formica_concrete:{label:"Formica Concrete", group:"Formica", ppm:1050,  color:"#A8A49E"},
-    formica_slate:   {label:"Formica Slate",    group:"Formica", ppm:1150,  color:"#6E6E6A"},
-    formica_oak:     {label:"Formica Oak",      group:"Formica", ppm:1150, color:"#C8A870"},
-    formica_wenge:   {label:"Formica Wenge",    group:"Formica", ppm:1150, color:"#4A3428"},
-    // -- QUARTZ -- ppm 6500 ----------------------------------------
-    quartz_arctic:   {label:"Quartz Arctic",    group:"Quartz",  ppm:2650, color:"#F0EEEB"},
-    quartz_calacatta:{label:"Quartz Calacatta", group:"Quartz",  ppm:2650, color:"#EDE8E0"},
-    quartz_grigio:   {label:"Quartz Grigio",    group:"Quartz",  ppm:2650, color:"#B8B4AE"},
-    quartz_charcoal: {label:"Quartz Charcoal",  group:"Quartz",  ppm:2950, color:"#4A4A48"},
-    quartz_pearl:    {label:"Quartz Pearl",     group:"Quartz",  ppm:2950, color:"#D8D0C4"},
-    quartz_nero:     {label:"Quartz Nero",      group:"Quartz",  ppm:2950, color:"#2A2824"},
+    "ct-white": 2350, "ct-grey": 2350, "ct-black": 2450, "ct-marble": 2600,
+    "ct-q-iceberg": 1950, "ct-q-magnolia": 1950, "ct-q-macadamia": 2050, "ct-q-sparkle": 2050,
+    "ct-q-stratus": 1950, "ct-q-bianco-cloud": 1950, "ct-q-aurelia": 2050, "ct-q-noble-white": 2150,
+    "ct-q-beach": 2050, "ct-q-dazzle": 2050, "ct-q-misty-pearl": 2050, "ct-q-dusty-stone": 2050,
+    "ct-q-cremalat": 2050, "ct-q-bianco-sup": 2150,
+    "ct-q-platinum": 2100, "ct-q-grey-river": 2100, "ct-q-slate": 2100, "ct-q-charcoal-grey": 2100,
+    "ct-q-fawn": 2100, "ct-q-grigio-cem": 2150, "ct-q-wrought-iron": 2150,
+    "ct-q-pietra-tempesta": 2200, "ct-q-thunder": 2150, "ct-q-galaxy": 2350, "ct-q-nero": 2350,
+    "ct-q-calacatta-fine": 2450, "ct-q-bianco-venato": 2350, "ct-q-calacatta-gold": 2650,
+    "ct-q-blanco-steel": 2350, "ct-q-blanco-bronze": 2550, "ct-q-blanco-pewter": 2450,
+    "ct-q-whisper": 2250, "ct-q-bianco-stat": 2450, "ct-q-bianco-calac": 2450,
+    "ct-q-nero-venato": 2550, "ct-q-calacatta-zara": 2750, "ct-q-bianco-carb": 2350,
+    "ct-f-walnut": 950, "ct-f-ash": 850, "ct-f-ebony": 950, "ct-f-matte-black": 850,
+    "ct-f-white-sparkle": 850, "ct-f-grey-slate": 950, "ct-f-salt-pepper": 850,
+    "ct-f-blue-granite": 950, "ct-f-emperador": 1050, "ct-f-grey-stone": 850,
   },
-  doors: {
-    supawood_white: {label:"Supawood White",    ppd:750,  color:"#F0F0EC", wood:false},
-    supawood_grey:  {label:"Supawood Dove",     ppd:750,  color:"#C0C0BC", wood:false},
-    veneer_oak:     {label:"Oak Veneer",        ppd:1400, color:"#C4914A", wood:true },
-    veneer_walnut:  {label:"Walnut Veneer",     ppd:1600, color:"#6B3E26", wood:true },
-    mel_charcoal:   {label:"Melamine Charcoal", ppd:650,  color:"#3D3D3D", wood:false},
-    mel_navy:       {label:"Melamine Navy",     ppd:650,  color:"#1B2A4A", wood:false},
-    mel_sage:       {label:"Melamine Sage",     ppd:650,  color:"#8FAF8A", wood:false},
-    mel_terracotta: {label:"Melamine Terra",    ppd:650,  color:"#C4704A", wood:false},
+  // 3. Carcass build upcharge per unit (R) — added on top of carcass base price
+  carcassBuild: { "melamine": 650, "solid": 950 },
+  // 4. Door finishes — price per door leaf (R), keyed by finish id
+  finish: {
+    "matte-folkstone": 650, "matte-white": 650, "matte-cream": 650, "matte-sage": 650,
+    "matte-charcoal": 650, "matte-navy": 650, "matte-clay": 650, "matte-dustpink": 650, "matte-slate": 650,
+    "gloss-iceberg": 950, "gloss-cappuccino": 950, "gloss-dunblane": 950, "gloss-storm": 950,
+    "gloss-caraz": 950, "gloss-petrol": 950, "gloss-white": 950, "gloss-black": 950, "gloss-champ": 950,
+    "wood-shale": 1100, "wood-treviso": 1100, "wood-alegria": 1100, "wood-cherry": 1100,
+    "wood-oak": 1100, "wood-walnut": 1100, "wood-ash": 1100, "wood-pine": 1100,
   },
-  handles: {
-    black_bar:  {label:"Black Bar Handle",   pe:195},
-    brass_cup:  {label:"Brushed Brass Cup",  pe:295},
-    brass_bar:  {label:"Brushed Brass Bar",  pe:295},
-    integrated: {label:"Integrated J-Pull",  pe:0  },
-    chrome_bar: {label:"Satin Chrome Bar",   pe:245},
-  },
+  // 5. Handles — price per handle (R), keyed by hardware id
+  hardware: { "none": 110, "gold": 25, "silver": 25, "black": 25, "bronze": 25 },
+  // 6. Hinges — price per hinge (R)
+  hinge: { "hinge-soft": 115 },
+  // 7. Drawer runners — price per pair (R)
+  runner: { "runner-soft": 195 },
+  // 8. Kick plate — price per linear metre (R/lm)
+  kickPlate: 85,
 };
 
-// -- APPLIANCES (display only -- no cost, no run metres) ------------------------
-// wC = width in 100mm grid cells, hC = height in cells (floor-snapped)
-// All floor-height (hC=9 = 720mm+kick zone) except fridges which are taller
-const APPLIANCES = {
-  washing_machine: {label:"Washing Machine", wMm:600, wC:6, hC:9,  color:"#E8E8EC", icon:"wash"  },
-  tumble_dryer:    {label:"Tumble Dryer",    wMm:600, wC:6, hC:9,  color:"#ECEAE8", icon:"dry"   },
-  dishwasher:      {label:"Dishwasher",      wMm:600, wC:6, hC:9,  color:"#E8ECE8", icon:"dish"  },
-  fridge_single:   {label:"Single Fridge",   wMm:600, wC:6, hC:22, color:"#EAEAEC", icon:"fridge1"},
-  fridge_double:   {label:"Double Fridge",   wMm:900, wC:9, hC:22, color:"#EAEAEC", icon:"fridge2"},
-  oven:            {label:"Oven Unit",        wMm:600, wC:6, hC:9,  color:"#E8E4E0", icon:"oven",    isWall:false},
-  extractor:       {label:"Extractor Fan",   wMm:600, wC:6, hC:7,  color:"#E4E4E8", icon:"extractor",isWall:true },
-};
+// ── Calculate total price for the full job ─────────────────────────────────────
+function calcJobTotal(units, materials) {
+  let total = 0;
+  const nonAppliance = units.filter(u => u.type !== "appliance");
+  const carcassBuildUpcharge = PRICING.carcassBuild[materials.carcass] || 0;
+  const carcassMarkup = materials.carcass === "solid" ? 6.0 : 3.5;
 
-const STEPS = ["Layout","Materials","Finishes","Preview","Quote","Plans"];
-const CATS  = ["Floor","Drawer","Wall","Tall","Corner","Appliance"];
+  const floorRunM = nonAppliance
+    .filter(u => ["base","drawer","tall-single","tall-double","corner"].includes(u.type))
+    .reduce((s, u) => s + u.width, 0) / 1000;
 
-function fmt(n){ return `R ${Math.round(n).toLocaleString("en-ZA")}`; }
+  const countertopRunM = nonAppliance
+    .filter(u => ["base","drawer","corner"].includes(u.type))
+    .reduce((s, u) => s + u.width, 0) / 1000;
 
-function calcQ(placed, carcKey, ctKey, doorKey, handleKey) {
-  // Exclude appliances from all pricing -- display only
-  const cabPlaced = placed.filter(p => !APPLIANCES[p.tid]);
-  if (!cabPlaced.length) return {cab:0,ctr:0,dr:0,hinges:0,runners:0,hnd:0,total:0,ctMm:0,totalDoorLeaves:0,totalRunnerPairs:0,details:[]};
-  const placed_ = cabPlaced; // shadow for rest of function
-  const carcM   = PM.carcass[carcKey];
-  const labMult = carcM ? LABOUR_MULT[carcM.matType] : LABOUR_MULT.melamine;
-  const cab     = placed_.reduce((s,p) => s + cabDef(p.tid).price, 0) * labMult;
-  const ctUnits = placed_.filter(p => ["Floor","Corner"].includes(cabDef(p.tid).cat));
-  const ctMm    = ctUnits.reduce((s,p) => s + cabDef(p.tid).wMm, 0);
-  const ctr     = (PM.countertop[ctKey]?.ppm || 0) * (ctMm / 1000);
-  const totalDoorLeaves  = placed_.reduce((s,p) => s + doorCount(cabDef(p.tid)), 0);
-  const totalRunnerPairs = placed_.reduce((s,p) => s + runnerPairs(cabDef(p.tid)), 0);
-  const dr      = (PM.doors[doorKey]?.ppd    || 0) * totalDoorLeaves;
-  const hinges  = totalDoorLeaves * 2 * HINGE_PRICE;
-  const runners = totalRunnerPairs * RUNNER_PRICE;
-  const hnd     = (PM.handles[handleKey]?.pe || 0) * totalDoorLeaves;
-  const details = placed_.map(p => {
-    const c = cabDef(p.tid);
-    const dc = doorCount(c), rp = runnerPairs(c);
-    return {
-      id:p.id, label:c.label, col:p.col,
-      unitBase: c.price * labMult,
-      doorCost: (PM.doors[doorKey]?.ppd||0)*dc,
-      hingeCost: dc*2*HINGE_PRICE,
-      runnerCost: rp*RUNNER_PRICE,
-      handleCost: (PM.handles[handleKey]?.pe||0)*dc,
-      dc, rp,
-    };
+  const fillerRunM = nonAppliance
+    .filter(u => ["tall-single","tall-double","upper"].includes(u.type))
+    .reduce((s, u) => s + u.width, 0) / 1000;
+
+  nonAppliance.forEach(u => {
+    const carcassKey = `${u.type}-${u.width}`;
+    const carcassPrice = PRICING.carcass[carcassKey] || 0;
+    total += (carcassPrice + carcassBuildUpcharge) * carcassMarkup;
+
+    const hc = hingeCount(u);
+    const finishPricePerDoor = PRICING.finish[u.finish || DEFAULT_FINISH] || 0;
+    total += finishPricePerDoor * hc.doors;
+
+    const dc = drawerCount(u);
+    const handlePrice = PRICING.hardware[u.hardware || DEFAULT_HW] || 0;
+    total += handlePrice * (hc.doors + dc);
+
+    const hingePrice = PRICING.hinge[u.hinge || DEFAULT_HINGE] || 0;
+    total += hingePrice * hc.total;
+
+    const runnerPrice = PRICING.runner[u.runner || DEFAULT_RUNNER] || 0;
+    total += runnerPrice * dc;
   });
-  return {cab,ctr,dr,hinges,runners,hnd,total:cab+ctr+dr+hinges+runners+hnd,ctMm,totalDoorLeaves,totalRunnerPairs,details};
+
+  const ctPrice = PRICING.countertop[materials.ctColour] || 0;
+  total += ctPrice * countertopRunM;
+
+  total += PRICING.kickPlate * floorRunM;
+  total += PRICING.kickPlate * fillerRunM;
+
+  return Math.round(total);
 }
 
-function overlaps(placed, col, row, wc, hc, skipId=null) {
-  return placed.some(p => {
-    if (p.id === skipId) return false;
-    const c = APPLIANCES[p.tid] || PM.cabinets[p.tid];
-    if (!c) return false;
-    return col < p.col+c.wC && col+wc > p.col && row < p.row+c.hC && row+hc > p.row;
-  });
+const DEFAULT_FINISH = "gloss-iceberg";
+const DEFAULT_HW     = "gold";
+
+const snapMm    = v => Math.round(v / SNAP_MM) * SNAP_MM;
+const getFinish = id => FINISHES.find(f => f.id === id) || FINISHES[0];
+
+function finishBg(id) {
+  const f = getFinish(id);
+  if (f.type === "wood")  return `repeating-linear-gradient(90deg,${f.color}CC 0,${f.color} 2px,${f.color}88 5px,${f.color} 8px)`;
+  if (f.type === "gloss") return `linear-gradient(145deg,${f.color} 55%,#fff5 100%)`;
+  return f.color;
 }
 
-// --- LOGO ---------------------------------------------------------------------
-function Logo({size=20}){
-  const cs=[{bg:B.orange,d:B.gold,dot:B.dark},{bg:B.dark,d:B.white,dot:B.orange},{bg:B.gold,d:B.orange,dot:B.dark}];
-  return(
-    <div className="flex gap-0.5">
-      {cs.map((c,i)=>(
-        <svg key={i} width={size} height={size} viewBox="0 0 40 40">
-          <circle cx="20" cy="20" r="20" fill={c.bg}/>
-          <polygon points="20,6 34,20 20,34 6,20" fill={c.d}/>
-          <circle cx="20" cy="20" r="6" fill={c.dot}/>
-        </svg>
-      ))}
-    </div>
-  );
-}
-
-
-// Safe lookup -- returns cabinet or appliance definition for any tid
-function cabDef(tid){ return PM.cabinets[tid] || APPLIANCES[tid] || {}; }
-// --- CABINET SVG --------------------------------------------------------------
-// Fine-line architectural style: thin strokes, minimal padding, clean reveals
-function CabSVG({tid, cs, doorColor, doorKey="supawood_white", sel, handleKey="black_bar"}){
-  const cab    = cabDef(tid);
-  const w      = cab.wC * cs;
-  const h      = cab.hC * cs;
-  const dc     = doorColor || "#EAE4DC";
-  const stroke = sel ? B.orange : "#9A8E82";
-  const sw     = sel ? 1.5 : 0.6;                   // much thinner carcass outline
-  const kickH   = cab.cat==="Wall" ? 0 : Math.round(1.5*cs);
-  const fillerH = (cab.cat==="Tall" || cab.cat==="Wall") ? Math.round(1.5*cs) : 0;
-  const bodyTop = fillerH;
-  const bodyH   = h - fillerH - kickH;
-  const pad     = Math.max(1.5, cs * 0.09);          // tighter pad — was 0.18
-  const reveal  = Math.max(1, cs * 0.07);            // fine reveal gap
-
-  // Lighter, more neutral carcass fill
-  const carcassFill = cab.color;
-
-  // -- Handle renderer ----------------------------------------------------------
-  function Handle({x, y, dw, dh, isDrawerFront=false}){
-    const hk = handleKey;
-    const hcx = x + dw/2;
-    const hy  = isDrawerFront ? y + dh/2 : y + dh*0.68;
-
-    if(hk==="integrated"){
-      return <rect x={x+dw*0.12} y={y+dh*0.07} width={dw*0.76} height={Math.max(1.5,dh*0.055)}
-        fill="rgba(0,0,0,0.20)" rx="0.5"/>;
-    }
-    if(hk==="brass_cup"){
-      const r = Math.max(2, dw*0.07);
-      return <g>
-        <circle cx={hcx} cy={hy} r={r} fill="none" stroke="#C8A850" strokeWidth="0.8"/>
-        <circle cx={hcx} cy={hy} r={r*0.4} fill="#C8A850" opacity="0.6"/>
-      </g>;
-    }
-    if(hk==="brass_bar" || hk==="chrome_bar"){
-      const barColor = hk==="brass_bar" ? "#C8A850" : "#B8B8C0";
-      const barW = isDrawerFront ? dw*0.5 : Math.max(3, dw*0.08);
-      const barH = isDrawerFront ? Math.max(1.5, dh*0.10) : Math.max(4, dh*0.26);
-      return <rect x={hcx-barW/2} y={hy-barH/2} width={barW} height={barH}
-        fill={barColor} rx={Math.min(barW,barH)/2} opacity="0.9"/>;
-    }
-    // black_bar default
-    const barW = isDrawerFront ? dw*0.5 : Math.max(3, dw*0.08);
-    const barH = isDrawerFront ? Math.max(1.5, dh*0.10) : Math.max(4, dh*0.26);
-    return <rect x={hcx-barW/2} y={hy-barH/2} width={barW} height={barH}
-      fill="#1E1208" rx={Math.min(barW,barH)/2} opacity="0.75"/>;
+function countertopBg(ct) {
+  if (!ct) return "transparent";
+  switch(ct.pattern) {
+    case "marble":        return `linear-gradient(135deg,#EAE6E0 38%,#D8D4CE 40%,#EAE6E0 42%,#E0DCD5 58%,#EAE6E0 60%,#D4D0CA 78%,#EAE6E0 80%)`;
+    case "concrete":      return `radial-gradient(ellipse at 30% 40%,#C0C0BC 0%,#C8C8C4 40%,#BEBEBA 100%)`;
+    case "wood":          return `repeating-linear-gradient(90deg,#C4935A 0,#B8864E 2px,#C4935A 5px,#BE8D54 8px)`;
+    case "granite-dark":  return `radial-gradient(ellipse at 20% 30%,#2A2A2A 0%,#1A1A1A 50%,#242424 100%)`;
+    case "granite-grey":  return `radial-gradient(ellipse at 60% 40%,#7A8690 0%,#6E7A80 50%,#626E74 100%)`;
+    case "granite-light": return `radial-gradient(ellipse at 30% 60%,#F0EBE2 0%,#EDE8DF 50%,#E4DFD4 100%)`;
+    case "granite-brown": return `radial-gradient(ellipse at 70% 30%,#8A5438 0%,#7A4A30 50%,#6A3E28 100%)`;
+    case "granite-green": return `radial-gradient(ellipse at 40% 50%,#567860 0%,#4A6A50 50%,#3E5C44 100%)`;
+    case "granite-blue":  return `radial-gradient(ellipse at 50% 40%,#46567A 0%,#3A4A6A 50%,#2E3E5A 100%)`;
+    case "quartz-white":        return ct.color;
+    case "quartz-cream":        return `linear-gradient(135deg,${ct.color} 60%,${ct.color}CC 100%)`;
+    case "quartz-sparkle":      return `radial-gradient(ellipse at 30% 40%,${ct.color}EE 0%,${ct.color} 40%,${ct.color}CC 100%)`;
+    case "quartz-sparkle-grey": return `radial-gradient(ellipse at 60% 30%,#C0C0BC 0%,#B8B4AC 50%,#B0ACA4 100%)`;
+    case "quartz-sparkle-dark": return `radial-gradient(ellipse at 40% 40%,#242424 0%,#1A1A1A 50%,#101010 100%)`;
+    case "quartz-stone":        return `radial-gradient(ellipse at 40% 50%,${ct.color}EE 0%,${ct.color} 50%,${ct.color}BB 100%)`;
+    case "quartz-grey":         return ct.color;
+    case "quartz-cement":       return `radial-gradient(ellipse at 30% 30%,${ct.color}EE 0%,${ct.color} 60%,${ct.color}CC 100%)`;
+    case "quartz-black":        return "#161616";
+    case "quartz-vein-fine":    return `linear-gradient(125deg,${ct.color} 38%,rgba(180,180,175,0.4) 40%,${ct.color} 42%,${ct.color} 65%,rgba(190,188,184,0.3) 67%,${ct.color} 69%)`;
+    case "quartz-vein-gold":    return `linear-gradient(130deg,#F8F4EC 30%,#C8A860 32%,#F5F0E4 34%,#F5F0E4 55%,#D4B070 57%,#F5F0E4 59%)`;
+    case "quartz-vein-bronze":  return `linear-gradient(140deg,#F4F0E8 35%,#A07840 37%,#F0EDE4 39%,#F0EDE4 60%,#8A6838 62%,#F0EDE4 64%)`;
+    case "quartz-vein-grey":    return `linear-gradient(130deg,#E8E4E2 40%,#9A9894 42%,#E0DCDA 44%,#E0DCDA 62%,#A8A6A2 64%,#E0DCDA 66%)`;
+    case "quartz-vein-dark":    return `linear-gradient(135deg,#1C1C1C 35%,#3A3A38 37%,#1A1A18 39%,#141412 60%,#2E2E2C 62%,#121210 64%)`;
+    case "formica-wood-warm":   return `linear-gradient(180deg,#8A6844 0%,#7A5C3C 15%,#6E5234 30%,#7E6040 45%,#8A6844 60%,#6A4E30 75%,#7A5C3C 100%)`;
+    case "formica-wood-ash":    return `linear-gradient(180deg,#C4BAA8 0%,#B8AFA0 20%,#C0B5A4 40%,#ACAA9A 60%,#B8AFA0 80%,#BEB4A4 100%)`;
+    case "formica-wood-dark":   return `linear-gradient(180deg,#343030 0%,#2E2A28 12%,#383432 25%,#2A2624 40%,#302C2A 55%,#262220 70%,#2E2A28 85%,#343030 100%)`;
+    case "formica-solid-black": return `#1E1E20`;
+    case "formica-sparkle-wht": return `radial-gradient(ellipse at 30% 40%,#F4F2F0 0%,#EEECEA 40%,#E8E6E4 100%)`;
+    case "formica-slate":       return `linear-gradient(145deg,#B8BCC0 30%,#222222 32%,#B0B4B8 34%,#B0B4B8 58%,#1A1A1A 60%,#AEB2B6 62%)`;
+    case "formica-speckle-lt":  return `radial-gradient(ellipse at 40% 50%,#D0CCCA 0%,#C0BCBA 40%,#B4B0AE 100%)`;
+    case "formica-speckle-dk":  return `radial-gradient(ellipse at 50% 40%,#54585E 0%,#484C54 40%,#3C4048 100%)`;
+    case "formica-emperador":   return `radial-gradient(ellipse at 30% 30%,#3A302C 0%,#2A2420 50%,#1E1A18 100%)`;
+    case "formica-stone-grey":  return `radial-gradient(ellipse at 50% 40%,#B0B4B8 0%,#A4A8AC 50%,#9CA0A4 100%)`;
+    default:              return ct.color;
   }
-
-  // -- Door panel — fine-line architectural style --------------------------------
-  function Door({x, y, dw, dh, isDrawerFront=false}){
-    return(
-      <g>
-        {/* Door face — light fill, clean outline only */}
-        <rect x={x+reveal} y={y+reveal} width={dw-reveal*2} height={dh-reveal*2}
-          fill={dc} stroke={stroke} strokeWidth="0.5" rx="0.5"/>
-        {/* Single fine shadow line at bottom and right — subtle depth */}
-        <line x1={x+reveal+1}     y1={y+dh-reveal}   x2={x+dw-reveal}   y2={y+dh-reveal}
-          stroke="rgba(0,0,0,0.10)" strokeWidth="0.5"/>
-        <line x1={x+dw-reveal}    y1={y+reveal+1}     x2={x+dw-reveal}   y2={y+dh-reveal}
-          stroke="rgba(0,0,0,0.10)" strokeWidth="0.5"/>
-        {/* Wood grain — very subtle for veneer */}
-        {["veneer_oak","veneer_walnut"].includes(doorKey) && [0.3,0.6].map((t,i)=>(
-          <line key={i}
-            x1={x+reveal+dw*t*0.65} y1={y+reveal+2}
-            x2={x+reveal+dw*t*0.65+dw*0.03} y2={y+dh-reveal-2}
-            stroke="rgba(0,0,0,0.06)" strokeWidth="0.6"/>
-        ))}
-        <Handle x={x+reveal} y={y+reveal} dw={dw-reveal*2} dh={dh-reveal*2} isDrawerFront={isDrawerFront}/>
-      </g>
-    );
-  }
-
-  // -- Door layout per cabinet type ----------------------------------------------
-  let doors;
-  if(cab.isDrawer){
-    const gap = Math.max(1.5, pad*0.8);
-    const totalGap = gap*(4);
-    const frontH = (bodyH - totalGap) / 3;
-    doors=<>{[0,1,2].map(i=>(
-      <Door key={i} x={pad} y={bodyTop+gap+i*(frontH+gap)} dw={w-pad*2} dh={frontH} isDrawerFront={true}/>
-    ))}</>;
-  } else if(cab.cat==="Tall"){
-    const midY    = bodyTop + bodyH/2;
-    const secH    = bodyH/2 - pad*1.2;
-    const halfW   = (w - pad*3) / 2;
-    doors=<>
-      <Door x={pad}         y={bodyTop+pad} dw={halfW} dh={secH}/>
-      <Door x={pad*2+halfW} y={bodyTop+pad} dw={halfW} dh={secH}/>
-      <Door x={pad}         y={midY+pad*0.4} dw={halfW} dh={secH}/>
-      <Door x={pad*2+halfW} y={midY+pad*0.4} dw={halfW} dh={secH}/>
-    </>;
-  } else if(cab.cat==="Wall" && cab.wC<9){
-    doors=<Door x={pad} y={bodyTop+pad} dw={w-pad*2} dh={bodyH-pad*2}/>;
-  } else {
-    const halfW = (w - pad*3) / 2;
-    doors=<>
-      <Door x={pad}         y={bodyTop+pad} dw={halfW} dh={bodyH-pad*2}/>
-      <Door x={pad*2+halfW} y={bodyTop+pad} dw={halfW} dh={bodyH-pad*2}/>
-    </>;
-  }
-
-  return(
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{display:"block",pointerEvents:"none"}}>
-      {/* Carcass body — clean flat fill, single thin outline */}
-      <rect x={0} y={0} width={w} height={h} fill={carcassFill} stroke={stroke} strokeWidth={sw}/>
-
-      {/* Filler strip — fine label only */}
-      {fillerH>0&&<>
-        <rect x={0.5} y={0.5} width={w-1} height={fillerH-0.5}
-          fill="#C4AA78" stroke={stroke} strokeWidth="0.4"/>
-        <text x={w/2} y={fillerH/2+2.5} textAnchor="middle"
-          fontSize={Math.max(4,cs*0.38)} fill="rgba(255,255,255,0.85)"
-          fontWeight="600" fontFamily="sans-serif" letterSpacing="0.5">FILLER</text>
-      </>}
-
-      {/* Kick plate — fine bottom band */}
-      {kickH>0&&<>
-        <rect x={0.5} y={h-kickH} width={w-1} height={kickH-0.5}
-          fill="#8A7860" stroke={stroke} strokeWidth="0.4"/>
-        <text x={w/2} y={h-kickH/2+2.5} textAnchor="middle"
-          fontSize={Math.max(4,cs*0.38)} fill="rgba(220,200,170,0.9)"
-          fontWeight="600" fontFamily="sans-serif" letterSpacing="0.5">KICK</text>
-      </>}
-
-      {/* Centre divider line for double-door units — fine vertical line */}
-      {!cab.isDrawer && cab.cat!=="Tall" && !(cab.cat==="Wall"&&cab.wC<9) && (
-        <line x1={w/2} y1={bodyTop+pad+reveal} x2={w/2} y2={bodyTop+bodyH-pad-reveal}
-          stroke={stroke} strokeWidth="0.4" opacity="0.5"/>
-      )}
-
-      {doors}
-
-      {/* Selection ring */}
-      {sel&&<rect x={0.5} y={0.5} width={w-1} height={h-1}
-        fill="none" stroke={B.orange} strokeWidth="1.2" strokeDasharray="4 2"/>}
-
-      {/* Width label — small, tucked into kick or body base */}
-      <text x={w/2} y={bodyTop+bodyH-(kickH>0?1:3)} textAnchor="middle"
-        fontSize={Math.max(5,cs*0.52)} fill={sel?B.orange:"rgba(80,65,48,0.6)"}
-        fontWeight="600" fontFamily="sans-serif">{cab.wMm}</text>
-    </svg>
-  );
 }
 
+// Returns corner polygon points based on rotation (0-3)
+function cornerPoints(W, H, rot) {
+  const cx = W * 0.38, cy = H * 0.38;
+  switch(rot % 4) {
+    case 0: return `0,0 ${W},0 ${W},${H} ${cx},${H} 0,${H-cy}`; // top-left notch
+    case 1: return `0,0 ${W},0 ${W},${H-cy} ${W-cx},${H} 0,${H}`; // top-right notch
+    case 2: return `${W-cx},0 ${W},${cy} ${W},${H} 0,${H} 0,0`; // bottom-right notch
+    case 3: return `0,${cy} ${cx},0 ${W},0 ${W},${H} 0,${H}`; // bottom-left notch
+    default: return `0,0 ${W},0 ${W},${H} ${cx},${H} 0,${H-cy}`;
+  }
+}
 
-// --- APPLIANCE SVG ------------------------------------------------------------
-function ApplianceSVG({aid, cs, sel}){
-  const ap  = APPLIANCES[aid];
-  const w   = ap.wC * cs;
-  const h   = ap.hC * cs;
-  const stroke = sel ? B.orange : "#9A9AB0";
-  const sw     = sel ? 2 : 1;
-  const cx=w/2, cy=h/2;
-
-  const icons = {
-    wash: <>
-      <circle cx={cx} cy={cy*0.9} r={w*0.28} fill="none" stroke={stroke} strokeWidth="1.5"/>
-      <circle cx={cx} cy={cy*0.9} r={w*0.14} fill={ap.color} stroke={stroke} strokeWidth="1"/>
-      <rect x={w*0.1} y={h*0.75} width={w*0.8} height={h*0.06} fill={stroke} opacity="0.4" rx="1"/>
-      <text x={cx} y={h*0.92} textAnchor="middle" fontSize={Math.max(6,cs*0.55)} fill={stroke} fontWeight="700" fontFamily="sans-serif">WASH</text>
-    </>,
-    dry: <>
-      <circle cx={cx} cy={cy*0.9} r={w*0.28} fill="none" stroke={stroke} strokeWidth="1.5"/>
-      <circle cx={cx} cy={cy*0.9} r={w*0.1} fill={stroke} opacity="0.5"/>
-      {[0,1,2,3,4,5].map(i=><line key={i} x1={cx} y1={cy*0.9} x2={cx+w*0.22*Math.cos(i*Math.PI/3)} y2={cy*0.9+w*0.22*Math.sin(i*Math.PI/3)} stroke={stroke} strokeWidth="0.8" opacity="0.4"/>)}
-      <text x={cx} y={h*0.92} textAnchor="middle" fontSize={Math.max(6,cs*0.55)} fill={stroke} fontWeight="700" fontFamily="sans-serif">DRY</text>
-    </>,
-    dish: <>
-      <rect x={w*0.2} y={h*0.15} width={w*0.6} height={h*0.55} fill="none" stroke={stroke} strokeWidth="1" rx="2"/>
-      {[0.3,0.45,0.6].map((t,i)=><line key={i} x1={w*0.25} y1={h*t} x2={w*0.75} y2={h*t} stroke={stroke} strokeWidth="0.7" opacity="0.5"/>)}
-      <text x={cx} y={h*0.88} textAnchor="middle" fontSize={Math.max(6,cs*0.55)} fill={stroke} fontWeight="700" fontFamily="sans-serif">DISH</text>
-    </>,
-    fridge1: <>
-      <rect x={w*0.12} y={h*0.04} width={w*0.76} height={h*0.48} fill="rgba(255,255,255,0.4)" stroke={stroke} strokeWidth="1" rx="2"/>
-      <rect x={w*0.12} y={h*0.54} width={w*0.76} height={h*0.36} fill="rgba(255,255,255,0.25)" stroke={stroke} strokeWidth="1" rx="2"/>
-      <rect x={w*0.44} y={h*0.24} width={w*0.12} height={h*0.08} fill={stroke} opacity="0.5" rx="1"/>
-      <rect x={w*0.44} y={h*0.67} width={w*0.12} height={h*0.08} fill={stroke} opacity="0.5" rx="1"/>
-      <text x={cx} y={h*0.96} textAnchor="middle" fontSize={Math.max(6,cs*0.55)} fill={stroke} fontWeight="700" fontFamily="sans-serif">FRIDGE</text>
-    </>,
-    fridge2: <>
-      <rect x={w*0.08} y={h*0.04} width={w*0.4} height={h*0.84} fill="rgba(255,255,255,0.4)" stroke={stroke} strokeWidth="1" rx="2"/>
-      <rect x={w*0.52} y={h*0.04} width={w*0.4} height={h*0.84} fill="rgba(255,255,255,0.25)" stroke={stroke} strokeWidth="1" rx="2"/>
-      <rect x={w*0.26} y={h*0.42} width={w*0.08} height={h*0.12} fill={stroke} opacity="0.5" rx="1"/>
-      <rect x={w*0.66} y={h*0.42} width={w*0.08} height={h*0.12} fill={stroke} opacity="0.5" rx="1"/>
-      <text x={cx} y={h*0.96} textAnchor="middle" fontSize={Math.max(6,cs*0.55)} fill={stroke} fontWeight="700" fontFamily="sans-serif">DBL FRIDGE</text>
-    </>,
-    oven: <>
-      {/* Oven body outline */}
-      <rect x={w*0.08} y={h*0.06} width={w*0.84} height={h*0.86} fill="rgba(255,255,255,0.15)" stroke={stroke} strokeWidth="1.2" rx="2"/>
-      {/* Control panel strip at top */}
-      <rect x={w*0.08} y={h*0.06} width={w*0.84} height={h*0.14} fill={stroke} opacity="0.15" rx="2"/>
-      {/* 4 control knobs */}
-      {[0.22,0.38,0.62,0.78].map((t,i)=>(
-        <g key={i}>
-          <circle cx={w*t} cy={h*0.13} r={w*0.055} fill="none" stroke={stroke} strokeWidth="1" opacity="0.8"/>
-          <circle cx={w*t} cy={h*0.13} r={w*0.02} fill={stroke} opacity="0.7"/>
-        </g>
-      ))}
-      {/* Oven door window */}
-      <rect x={w*0.16} y={h*0.26} width={w*0.68} height={h*0.42} fill="rgba(255,255,255,0.25)" stroke={stroke} strokeWidth="0.8" rx="2"/>
-      {/* Inner window frame */}
-      <rect x={w*0.22} y={h*0.31} width={w*0.56} height={h*0.32} fill="rgba(0,0,0,0.08)" stroke={stroke} strokeWidth="0.5" rx="1"/>
-      {/* Door handle bar */}
-      <rect x={w*0.16} y={h*0.72} width={w*0.68} height={h*0.06} fill={stroke} opacity="0.5" rx="2"/>
-      {/* Bottom drawer strip */}
-      <rect x={w*0.08} y={h*0.80} width={w*0.84} height={h*0.10} fill="none" stroke={stroke} strokeWidth="0.7" rx="1" opacity="0.5"/>
-      <text x={cx} y={h*0.96} textAnchor="middle" fontSize={Math.max(6,cs*0.55)} fill={stroke} fontWeight="700" fontFamily="sans-serif">OVEN</text>
-    </>,
-    extractor: <>
-      {/* Housing body */}
-      <rect x={w*0.08} y={h*0.06} width={w*0.84} height={h*0.82} fill="rgba(255,255,255,0.15)" stroke={stroke} strokeWidth="1.2" rx="3"/>
-      {/* Canopy slope — trapezoid */}
-      <path d={`M${w*0.08},${h*0.24} L${w*0.18},${h*0.06} L${w*0.82},${h*0.06} L${w*0.92},${h*0.24} Z`}
-        fill={stroke} opacity="0.12" stroke={stroke} strokeWidth="0.8"/>
-      {/* Filter grille lines */}
-      {[0.38,0.50,0.62].map((t,i)=>(
-        <line key={i} x1={w*0.14} y1={h*t} x2={w*0.86} y2={h*t} stroke={stroke} strokeWidth="1.2" opacity="0.35"/>
-      ))}
-      {/* Centre fan circle */}
-      <circle cx={cx} cy={h*0.50} r={w*0.18} fill="none" stroke={stroke} strokeWidth="1" opacity="0.6"/>
-      {/* Fan blades */}
-      {[0,1,2,3].map(i=>(
-        <path key={i}
-          d={`M${cx},${h*0.50} Q${cx+w*0.14*Math.cos((i*Math.PI/2)+0.4)},${h*0.50+w*0.14*Math.sin((i*Math.PI/2)+0.4)} ${cx+w*0.15*Math.cos(i*Math.PI/2)},${h*0.50+w*0.15*Math.sin(i*Math.PI/2)}`}
-          fill={stroke} opacity="0.4"/>
-      ))}
-      {/* Control strip at top */}
-      <rect x={w*0.25} y={h*0.08} width={w*0.18} height={h*0.07} fill={stroke} opacity="0.3" rx="1"/>
-      <rect x={w*0.50} y={h*0.08} width={w*0.25} height={h*0.07} fill={stroke} opacity="0.2" rx="1"/>
-      <text x={cx} y={h*0.94} textAnchor="middle" fontSize={Math.max(6,cs*0.55)} fill={stroke} fontWeight="700" fontFamily="sans-serif">EXTRACTOR</text>
-    </>,
+function ApplianceSVG({ unit, pxPerMm, selected }) {
+  const W = unit.width * pxPerMm, H = unit.height * pxPerMm;
+  const uid = `a${unit.id}`;
+  const a = APPLIANCE_TYPES.find(x => x.id === unit.appId) || APPLIANCE_TYPES[0];
+  const detail = () => {
+    if (a.id==="appl-washer"||a.id==="appl-dryer") {
+      const cx=W/2,cy=H*0.42,r=Math.min(W,H)*0.26;
+      return (<><circle cx={cx} cy={cy} r={r} fill="#9BBCCC" stroke="#6A90A0" strokeWidth={1.5}/><circle cx={cx} cy={cy} r={r*0.52} fill="#C8DCE8" stroke="#6A90A0" strokeWidth={1}/><circle cx={cx} cy={cy} r={r*0.1} fill="#5A8090"/><rect x={W*0.1} y={H*0.08} width={W*0.55} height={H*0.055} rx={2} fill="#8AAABB" opacity={0.7}/></>);
+    }
+    if (a.id==="appl-dishwasher") return (<><rect x={W*0.1} y={H*0.06} width={W*0.8} height={H*0.09} rx={2} fill="#9AACB8"/><rect x={W*0.08} y={H*0.18} width={W*0.84} height={H*0.6} rx={3} fill="#B8CCDA" stroke="#7A9AAC" strokeWidth={1}/>{[0.3,0.44,0.58].map((y,i)=><line key={i} x1={W*0.14} y1={H*y} x2={W*0.86} y2={H*y} stroke="#7A9AAC" strokeWidth={0.8}/>)}</>);
+    if (a.id==="appl-oven") return (<><rect x={W*0.08} y={H*0.05} width={W*0.84} height={H*0.22} rx={2} fill="#9AACB4" stroke="#708090" strokeWidth={1}/>{[0.22,0.48,0.74].map((x,i)=><circle key={i} cx={W*x} cy={H*0.16} r={W*0.07} fill="#607080"/>)}<rect x={W*0.08} y={H*0.3} width={W*0.84} height={H*0.58} rx={3} fill="#B0BCCA" stroke="#708090" strokeWidth={1}/><rect x={W*0.14} y={H*0.36} width={W*0.72} height={H*0.46} rx={2} fill="#8090A0" opacity={0.5}/></>);
+    if (a.id==="appl-fridge-s") return (<><rect x={W*0.06} y={H*0.03} width={W*0.88} height={H*0.32} rx={4} fill="#B0C4D0" stroke="#7A9AAA" strokeWidth={1.5}/><rect x={W*0.06} y={H*0.38} width={W*0.88} height={H*0.59} rx={4} fill="#B8CCDA" stroke="#7A9AAA" strokeWidth={1.5}/><rect x={W*0.76} y={H*0.16} width={W*0.07} height={H*0.09} rx={2} fill="#7A9AAA"/><rect x={W*0.76} y={H*0.6} width={W*0.07} height={H*0.14} rx={2} fill="#7A9AAA"/></>);
+    if (a.id==="appl-fridge-d") return (<><rect x={W*0.04} y={H*0.03} width={W*0.44} height={H*0.94} rx={4} fill="#B0C4D0" stroke="#7A9AAA" strokeWidth={1.5}/><rect x={W*0.52} y={H*0.03} width={W*0.44} height={H*0.94} rx={4} fill="#B8CCDA" stroke="#7A9AAA" strokeWidth={1.5}/><rect x={W*0.2} y={H*0.44} width={W*0.08} height={H*0.12} rx={2} fill="#7A9AAA"/><rect x={W*0.72} y={H*0.44} width={W*0.08} height={H*0.12} rx={2} fill="#7A9AAA"/></>);
+    return null;
   };
-
-  return(
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{display:"block",pointerEvents:"none"}}>
-      <rect x={0} y={0} width={w} height={h} fill={ap.color} stroke={stroke} strokeWidth={sw} rx="2"/>
-      <rect x={0} y={0} width={w} height={h} fill="url(#cg_ap)" stroke="none" opacity="0.5"/>
-      {icons[ap.icon]}
-      {sel&&<rect x={1} y={1} width={w-2} height={h-2} fill="none" stroke={B.orange} strokeWidth="1.5" strokeDasharray="3 2"/>}
+  return (
+    <svg width={W} height={H} style={{ display:"block", overflow:selected?"visible":"hidden", pointerEvents:"none" }}>
+      <defs>{selected&&<filter id={`sel${uid}`} x="-12%" y="-12%" width="124%" height="124%"><feDropShadow dx="0" dy="0" stdDeviation="4" floodColor={C.orange} floodOpacity="1"/></filter>}</defs>
+      <rect x={0} y={0} width={W} height={H} rx={4} fill="#D4E4EE" stroke={selected?C.orange:"#90B0C0"} strokeWidth={selected?2.5:1.5} filter={selected?`url(#sel${uid})`:undefined}/>
+      {detail()}
+      <rect x={W/2-34} y={H*0.82} width={68} height={15} rx={3} fill="rgba(255,255,255,0.75)"/>
+      <text x={W/2} y={H*0.82+11} textAnchor="middle" fontSize={Math.max(7,pxPerMm*22)} fill="#3A5060" fontFamily="sans-serif" fontWeight="bold">{a.label}</text>
+      <rect x={W/2-22} y={H-17} width={44} height={13} rx={3} fill="rgba(0,0,0,0.35)"/>
+      <text x={W/2} y={H-7} textAnchor="middle" fontSize={Math.max(7,pxPerMm*28)} fill="#FFF" fontFamily="sans-serif">{unit.width}mm</text>
     </svg>
   );
 }
 
-// --- WALL GRID ----------------------------------------------------------------
-function WallGrid({placed, setPlaced, selType, door, handle, cs, gridCols=60, setGridCols}){
-  const gridRef  = useRef(null);
-  const [selId,  setSelId] = useState(null);
-  const [ghost,  setGhost] = useState(null);
-  const [mode,   setMode]  = useState("place");
 
-  // Always-fresh refs -- the key fix: event listeners read these, never stale closures
-  const R = useRef({ placed, selType, mode, cs, gridCols, drag: null });
-  useEffect(() => { R.current.placed  = placed;  }, [placed]);
-  useEffect(() => { R.current.selType = selType; }, [selType]);
-  useEffect(() => { R.current.mode    = mode;    }, [mode]);
-  useEffect(() => { R.current.cs      = cs;      }, [cs]);
-  useEffect(() => { R.current.gridCols = gridCols; }, [gridCols]);
-
-  const doorColor = PM.doors[door]?.color;
-
-  function gridPos(cx, cy) {
-    const el = gridRef.current;
-    if (!el) return null;
-    const r   = el.getBoundingClientRect();
-    const csz = R.current.cs;
-    return {
-      col: Math.max(0, Math.min(Math.floor((cx-r.left)/csz), R.current.gridCols-1)),
-      row: Math.max(0, Math.min(Math.floor((cy-r.top) /csz), GRID_ROWS-1)),
-    };
-  }
-
-  function snapPos(col, row, tid) {
-    // Check appliance first
-    if (APPLIANCES[tid]) {
-      const ap = APPLIANCES[tid];
-      // Fridges are tall, wall appliances snap to wall zone, others snap to floor
-      const isTallApp = ap.hC > 10;
-      const isWallApp = ap.isWall === true;
-      const sr = isTallApp ? (FLOOR_ROW + 9) - ap.hC
-               : isWallApp ? (FLOOR_ROW + 9) - PM.cabinets["tall_pantry"].hC
-               : FLOOR_ROW;
-      return { col: Math.max(0, Math.min(col, R.current.gridCols - ap.wC)), row: Math.max(0, sr) };
-    }
-    const cab = cabDef(tid);
-    let sr;
-    if      (cab.cat==="Wall") sr = (FLOOR_ROW + 9) - PM.cabinets["tall_pantry"].hC; // align top with tall units
-    else if (cab.cat==="Tall") sr = (FLOOR_ROW + 9) - cab.hC;
-    else                       sr = FLOOR_ROW;
-    return { col: Math.max(0, Math.min(col, R.current.gridCols-cab.wC)), row: sr };
-  }
-
-  // Attach all grid event listeners once, read live values via R.current
-  useEffect(() => {
-    const el = gridRef.current;
-    if (!el) return;
-
-    function doMove(cx, cy) {
-      const pos = gridPos(cx, cy);
-      if (!pos) return;
-      const { drag, placed: pl, selType: st, mode: m } = R.current;
-
-      if (drag) {
-        const p = pl.find(x => x.id === drag.id);
-        if (!p) return;
-        const cab = APPLIANCES[p.tid] || PM.cabinets[p.tid];
-        const { col, row } = snapPos(pos.col-drag.oc, pos.row-drag.or, p.tid);
-        const valid = col+cab.wC<=R.current.gridCols && row+cab.hC<=GRID_ROWS && !overlaps(pl,col,row,cab.wC,cab.hC,drag.id);
-        setGhost({ col, row, tid: p.tid, valid });
-        return;
-      }
-      if (m==="place" && st) {
-        const cab = APPLIANCES[st] || PM.cabinets[st];
-        const { col, row } = snapPos(pos.col, pos.row, st);
-        const valid = col+cab.wC<=R.current.gridCols && row+cab.hC<=GRID_ROWS && !overlaps(pl,col,row,cab.wC,cab.hC);
-        setGhost({ col, row, tid: st, valid });
-      } else {
-        setGhost(null);
-      }
-    }
-
-    function doPlace(cx, cy) {
-      const { drag, placed: pl, selType: st, mode: m } = R.current;
-      if (drag) return;
-      if (m==="place" && st) {
-        const pos = gridPos(cx, cy);
-        if (!pos) return;
-        const cab = APPLIANCES[st] || PM.cabinets[st];
-        const { col, row } = snapPos(pos.col, pos.row, st);
-        const valid = col+cab.wC<=R.current.gridCols && row+cab.hC<=GRID_ROWS && !overlaps(pl,col,row,cab.wC,cab.hC);
-        if (valid) {
-          const newItem = { id: Date.now().toString(), tid: st, col, row };
-          setPlaced(prev => [...prev, newItem]);
-          setGhost({ col, row, tid: st, valid: true });
-        }
-      } else if (m==="select") {
-        setSelId(null);
-      }
-    }
-
-    function doUp() {
-      const { drag } = R.current;
-      if (!drag) return;
-      // read ghost via state setter callback to get latest value without closure
-      setGhost(g => {
-        if (g && g.valid) {
-          setPlaced(prev => prev.map(p => p.id===drag.id ? {...p,col:g.col,row:g.row} : p));
-        }
-        R.current.drag = null;
-        return null;
-      });
-    }
-
-    const onMouseMove  = e => doMove(e.clientX, e.clientY);
-    const onMouseLeave = () => { if (!R.current.drag) setGhost(null); };
-    const onMouseUp    = () => doUp();
-    const onClick      = e => doPlace(e.clientX, e.clientY);
-    const onTouchMove  = e => { e.preventDefault(); doMove(e.touches[0].clientX, e.touches[0].clientY); };
-    const onTouchEnd   = e => { doUp(); setTimeout(()=>doPlace(e.changedTouches[0].clientX, e.changedTouches[0].clientY), 0); };
-
-    el.addEventListener("mousemove",  onMouseMove);
-    el.addEventListener("mouseleave", onMouseLeave);
-    el.addEventListener("mouseup",    onMouseUp);
-    el.addEventListener("click",      onClick);
-    el.addEventListener("touchmove",  onTouchMove,  {passive:false});
-    el.addEventListener("touchend",   onTouchEnd);
-
-    return () => {
-      el.removeEventListener("mousemove",  onMouseMove);
-      el.removeEventListener("mouseleave", onMouseLeave);
-      el.removeEventListener("mouseup",    onMouseUp);
-      el.removeEventListener("click",      onClick);
-      el.removeEventListener("touchmove",  onTouchMove);
-      el.removeEventListener("touchend",   onTouchEnd);
-    };
-  }, []); // attach once -- live values via R.current
-
-  // Handle placed-cabinet interactions (select/drag start)
-  // Always set selId so Remove button appears in both modes
-  function onCabDown(e, p) {
-    e.stopPropagation();
-    setSelId(p.id);
-    if (R.current.mode==="select") {
-      const pos = gridPos(e.clientX, e.clientY);
-      if (pos) R.current.drag = { id:p.id, oc:pos.col-p.col, or:pos.row-p.row };
-    }
-  }
-
-  const delSel = () => { setPlaced(prev => prev.filter(p => p.id !== selId)); setSelId(null); };
-
-  const gridW  = gridCols * cs;
-  const gridH  = GRID_ROWS * cs;
-  const floorY = FLOOR_ROW * cs;
-  const maxMm  = gridCols * 100;
-  const tickMm  = Array.from({length:gridCols/6+1},(_,i)=>i*600).filter(m=>m<=maxMm);
-
-  return(
-    <div className="flex flex-col gap-2">
-      {/* Toolbar */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {[{id:"place",icon:MousePointer,label:"Place"},{id:"select",icon:Move,label:"Move"}].map(({id,icon:Icon,label})=>(
-          <button key={id} onClick={()=>{setMode(id);setGhost(null);}}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
-            style={{background:mode===id?B.dark:B.parchment,color:mode===id?B.white:B.dark,border:`1.5px solid ${mode===id?B.orange:"#D0C8BC"}`}}>
-            <Icon size={11}/>{label}
-          </button>
-        ))}
-        {selId&&(
-          <button onClick={delSel}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold"
-            style={{background:"#6B1A12",color:B.white}}>
-            <Trash2 size={11}/> Remove
-          </button>
-        )}
-        <button onClick={()=>{setPlaced([]);setSelId(null);}}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold"
-          style={{background:B.parchment,color:"#9A8878",border:"1.5px solid #D0C8BC"}}>
-          <RotateCcw size={11}/> Clear
-        </button>
-        {/* Wall width toggle */}
-        <div className="flex items-center gap-1 ml-auto rounded-lg overflow-hidden" style={{border:"1.5px solid #D0C8BC"}}>
-          {[{v:60,l:"6m"},{v:80,l:"8m"},{v:100,l:"10m"},{v:120,l:"12m"}].map(({v,l})=>(
-            <button key={v} onClick={()=>setGridCols(v)}
-              className="px-2 py-1.5 text-[10px] font-black transition-all"
-              style={{background:gridCols===v?B.dark:B.parchment,color:gridCols===v?B.white:"#9A8878"}}>
-              {l}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Canvas */}
-      <div className="overflow-x-auto rounded-xl" style={{border:`1.5px solid #C0B8AC`}}>
-        <div ref={gridRef} className="relative select-none"
-          style={{width:gridW, height:gridH, cursor:mode==="place"&&selType?"crosshair":"default"}}>
-
-          {/* BG zones */}
-          <div className="absolute inset-0" style={{background:"#F2EDE4"}}/>
-          <div className="absolute" style={{top:0,left:0,right:0,height:floorY,background:"#EDE7DC"}}/>
-          <div className="absolute" style={{top:floorY,left:0,right:0,bottom:0,background:"#E8E0D4"}}/>
-
-          {/* Zone labels */}
-          <div className="absolute pointer-events-none" style={{top:4,left:6,color:B.dark,fontSize:8,fontWeight:700,letterSpacing:2,opacity:0.4,textTransform:"uppercase"}}>Wall Zone -- 2000mm</div>
-          <div className="absolute pointer-events-none" style={{top:floorY+4,left:6,color:B.dark,fontSize:8,fontWeight:700,letterSpacing:2,opacity:0.4,textTransform:"uppercase"}}>Floor Zone</div>
-          <div className="absolute pointer-events-none" style={{top:2,right:6,color:B.dark,fontSize:7,fontWeight:700,opacity:0.35,textTransform:"uppercase"}}>CEILING / 2750mm</div>
-
-          {/* Grid lines + ruler */}
-          <svg className="absolute inset-0 pointer-events-none" width={gridW} height={gridH}>
-            {Array.from({length:gridCols+1}).map((_,i)=>(
-              <line key={`v${i}`} x1={i*cs} y1={0} x2={i*cs} y2={gridH} stroke={i%6===0?"#C0B8AC":"#DDD8D0"} strokeWidth={i%6===0?0.8:0.4}/>
-            ))}
-            {Array.from({length:GRID_ROWS+1}).map((_,i)=>(
-              <line key={`h${i}`} x1={0} y1={i*cs} x2={gridW} y2={i*cs} stroke={i===FLOOR_ROW?B.orange:i===0?"#B0A898":"#DDD8D0"} strokeWidth={i===FLOOR_ROW?1.5:i===0?1:0.4}/>
-            ))}
-            {tickMm.map(mm=>{
-              const x=(mm/100)*cs;
-              return(<g key={mm}><line x1={x} y1={gridH-14} x2={x} y2={gridH} stroke={B.dark} strokeWidth="0.8" opacity="0.3"/><text x={x+2} y={gridH-3} fontSize="7" fill={B.dark} opacity="0.35" fontFamily="sans-serif">{mm}mm</text></g>);
-            })}
-          </svg>
-
-          {/* Floor line */}
-          <div className="absolute pointer-events-none" style={{top:floorY,left:0,right:0,height:2,background:B.orange,opacity:0.8}}/>
-
-          {/* Placed cabinets */}
-          {placed.map(p=>{
-            const cab   = APPLIANCES[p.tid] || PM.cabinets[p.tid];
-            if(!cab) return null;
-            const isSel = p.id===selId;
-            const isDrg = R.current.drag?.id===p.id;
-            return(
-              <div key={p.id} className="absolute"
-                style={{left:p.col*cs,top:p.row*cs,width:cab.wC*cs,height:cab.hC*cs,
-                  opacity:isDrg?0.25:1,cursor:mode==="select"?"grab":"pointer",zIndex:isSel?10:5}}
-                onMouseDown={e=>onCabDown(e,p)}
-                onTouchStart={e=>{const t=e.touches[0];onCabDown({clientX:t.clientX,clientY:t.clientY,stopPropagation:()=>e.stopPropagation()},p);}}>
-                {APPLIANCES[p.tid]
-                  ? <ApplianceSVG aid={p.tid} cs={cs} sel={isSel}/>
-                  : <CabSVG tid={p.tid} cs={cs} doorColor={doorColor} doorKey={door} sel={isSel} handleKey={handle}/>}
-                {isSel&&(
-                  <div className="absolute -top-5 left-0 px-1.5 py-0.5 rounded text-[9px] font-bold whitespace-nowrap z-20"
-                    style={{background:B.orange,color:B.white}}>
-                    {cab.label}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-
-          {/* Ghost preview */}
-          {ghost&&(()=>{const gc=APPLIANCES[ghost.tid]||PM.cabinets[ghost.tid];if(!gc)return null;return(
-            <div className="absolute pointer-events-none"
-              style={{left:ghost.col*cs,top:ghost.row*cs,
-                width:gc.wC*cs,height:gc.hC*cs,
-                opacity:0.65,zIndex:20}}>
-              {APPLIANCES[ghost.tid]
-                ?<ApplianceSVG aid={ghost.tid} cs={cs} sel={ghost.valid}/>
-                :<CabSVG tid={ghost.tid} cs={cs} doorColor={doorColor} doorKey={door} sel={ghost.valid} handleKey={handle}/>}
-              {!ghost.valid&&<div className="absolute inset-0" style={{background:"rgba(180,40,20,0.4)",border:"2px solid #C03020"}}/>}
-            </div>);})()}
-        </div>
-      </div>
-
-      {/* Layout metrics */}
-      {placed.length>0&&(
-        <div className="rounded-xl overflow-hidden" style={{border:"1.5px solid #E0D8CC"}}>
-          <div className="flex">
-            {[
-              {label:"Floor Run",   val:(placed.filter(p=>["Floor","Corner","Tall"].includes(cabDef(p.tid).cat)).reduce((s,p)=>s+cabDef(p.tid).wMm,0)/1000).toFixed(2)+"m"},
-              {label:"Wall Run",    val:(placed.filter(p=>cabDef(p.tid).cat==="Wall").reduce((s,p)=>s+cabDef(p.tid).wMm,0)/1000).toFixed(2)+"m"},
-              {label:"Countertop",  val:(placed.filter(p=>["Floor","Corner"].includes(cabDef(p.tid).cat)).reduce((s,p)=>s+cabDef(p.tid).wMm,0)/1000).toFixed(2)+"m"},
-            ].map((m,i)=>(
-              <div key={m.label} className="flex-1 text-center py-2"
-                style={{borderRight:i<2?"1px solid #E0D8CC":"none",background:i===1?B.parchment:B.white}}>
-                <p className="text-base font-black leading-tight" style={{color:B.dark}}>{m.val}</p>
-                <p className="text-[9px] font-bold tracking-widest uppercase" style={{color:"#9A8878"}}>{m.label}</p>
-              </div>
-            ))}
-          </div>
-          <div className="px-3 py-1.5 flex items-center justify-between" style={{background:B.dark}}>
-            <span className="text-[10px] font-bold" style={{color:"#C4B8A8"}}>{placed.filter(p=>!APPLIANCES[p.tid]).length} unit{placed.filter(p=>!APPLIANCES[p.tid]).length!==1?"s":""} placed</span>
-
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// --- PALETTE ------------------------------------------------------------------
-function Palette({selType, setSelType}){
-  const [cat,setCat] = useState("Floor");
-  const isApplTab = cat==="Appliance";
-  const filtered = isApplTab
-    ? Object.entries(APPLIANCES)
-    : Object.entries(PM.cabinets).filter(([,v])=>
-        cat==="Drawer" ? v.isDrawer : (v.cat===cat && !v.isDrawer)
-      );
-  return(
-    <div className="flex flex-col gap-2">
-      <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-        {CATS.map(c=>(
-          <button key={c} onClick={()=>setCat(c)}
-            className="flex-shrink-0 px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase transition-all"
-            style={{background:cat===c?B.dark:"transparent",color:cat===c?B.white:"#9A8878",border:`1.5px solid ${cat===c?B.dark:"#D0C8BC"}`}}>
-            {c}
-          </button>
-        ))}
-      </div>
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {filtered.map(([id,cab])=>{
-          const on=selType===id;
-          return(
-            <button key={id}
-              onClick={e=>{ e.stopPropagation(); setSelType(on?null:id); }}
-              className="flex-shrink-0 rounded-xl overflow-hidden transition-all"
-              style={{border:`2px solid ${on?B.orange:"#D0C8BC"}`,background:on?B.dark:B.white,minWidth:72}}>
-              <div className="flex items-end justify-center pt-2 px-2" style={{height:44,background:on?"#1A0F0D":B.parchment}}>
-                {isApplTab
-                  ? <ApplianceSVG aid={id} cs={7} sel={on}/>
-                  : <svg width={Math.min(52,16+cab.wC*4)} height={cab.cat==="Tall"?40:cab.cat==="Wall"?22:28} viewBox={`0 0 ${cab.wC*8} ${cab.hC*8}`}>
-                      <rect x={0} y={0} width={cab.wC*8} height={cab.hC*8} fill={cab.color} stroke={on?B.orange:"#A09080"} strokeWidth="1" rx="1"/>
-                      {cab.cat!=="Wall"&&<rect x={1} y={cab.hC*8-13} width={cab.wC*8-2} height={12} fill="#8A7A60" opacity="0.7"/>}
-                      {(cab.cat==="Tall"||cab.cat==="Wall")&&<rect x={1} y={1} width={cab.wC*8-2} height={12} fill="#A89870" opacity="0.7"/>}
-                    </svg>
-                }
-              </div>
-              <div className="px-2 py-1.5">
-                <p className="text-[9px] font-black leading-tight" style={{color:on?B.white:B.dark}}>{cab.label}</p>
-
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-
-// --- COUNTERTOP PICKER (grouped) ---------------------------------------------
-function CountertopPicker({ct, setCt}){
-  const groups = ["Formica","Quartz"];
-  const curGroup = PM.countertop[ct]?.group || "Formica";
-  const [activeGroup, setActiveGroup] = useState(curGroup);
-
-  // Sync active group if ct changes externally
-  useEffect(()=>{ setActiveGroup(PM.countertop[ct]?.group || "Formica"); },[ct]);
-
-  const filtered = Object.entries(PM.countertop).filter(([,v])=>v.group===activeGroup);
-
-  return(
-    <div className="flex flex-col gap-2">
-      {/* Group toggle */}
-      <div className="flex rounded-xl overflow-hidden" style={{border:"1.5px solid #E0D8CC"}}>
-        {groups.map(g=>(
-          <button key={g} onClick={()=>{
-            setActiveGroup(g);
-            // Auto-select first of new group if current isn't in it
-            if(PM.countertop[ct]?.group!==g){
-              const first=Object.entries(PM.countertop).find(([,v])=>v.group===g);
-              if(first) setCt(first[0]);
-            }
-          }}
-            className="flex-1 py-2 text-xs font-black tracking-widest uppercase transition-all"
-            style={{background:activeGroup===g?B.dark:B.white,color:activeGroup===g?B.white:"#9A8878"}}>
-            {g}
-            {g==="Formica"&&<span className="ml-1 text-[8px] opacity-60">Laminate</span>}
-            {g==="Quartz"&&<span className="ml-1 text-[8px] opacity-60">Stone</span>}
-          </button>
-        ))}
-      </div>
-      {/* Colour swatches grid */}
-      <div className="grid grid-cols-3 gap-2">
-        {filtered.map(([id,m])=>{
-          const sel=ct===id;
-          return(
-            <button key={id} onClick={()=>setCt(id)}
-              className="rounded-xl overflow-hidden transition-all"
-              style={{border:`2px solid ${sel?B.orange:"#E0D8CC"}`}}>
-              <div className="h-10 relative" style={{background:m.color}}>
-                {/* Subtle texture for quartz */}
-                {m.group==="Quartz"&&<div className="absolute inset-0 opacity-10"
-                  style={{backgroundImage:"radial-gradient(circle at 30% 40%,rgba(255,255,255,0.8) 1px,transparent 1px),radial-gradient(circle at 70% 60%,rgba(255,255,255,0.6) 0.5px,transparent 0.5px)",backgroundSize:"8px 8px,5px 5px"}}/>}
-                {sel&&<div className="absolute top-1 right-1 w-4 h-4 rounded-full flex items-center justify-center"
-                  style={{background:B.orange}}><Check size={9} color={B.white}/></div>}
-              </div>
-              <div className="px-1.5 py-1.5" style={{background:sel?B.dark:B.white}}>
-                <p className="text-[9px] font-black leading-tight" style={{color:sel?B.white:B.dark}}>{m.label}</p>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// --- STEP 2: MATERIALS --------------------------------------------------------
-function SelCard({sel,onSel,color,label,badge,sub,badgeStyle}){
-  return(
-    <button onClick={onSel}
-      className="flex items-center gap-3 rounded-xl px-4 py-3 w-full text-left transition-all"
-      style={{background:sel?B.dark:B.white,border:`1.5px solid ${sel?B.orange:"#E0D8CC"}`}}>
-      <div className="w-9 h-9 rounded-lg flex-shrink-0" style={{background:color,border:"1.5px solid rgba(0,0,0,0.1)"}}/>
-      <div className="flex-1">
-        <span className="text-sm font-bold block" style={{color:sel?B.white:B.dark}}>{label}</span>
-        {sub&&<span className="text-[10px] block" style={{color:sel?"#C4B8A8":"#9A8878"}}>{sub}</span>}
-      </div>
-      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
-        style={badgeStyle||{background:sel?B.orange:"#F0EDE5",color:sel?B.white:"#9A8878"}}>
-        {badge}
-      </span>
-      {sel&&<Check size={14} color={B.orange}/>}
-    </button>
-  );
-}
-
-function Step2({carc,setCarc,ct,setCt}){
-  const labMult = PM.carcass[carc] ? LABOUR_MULT[PM.carcass[carc].matType] : 3.5;
-  return(
-    <div className="flex flex-col gap-5">
-      <div className="rounded-xl px-4 py-3 flex gap-3 items-start" style={{background:"#FFF8EC",border:`1.5px solid ${B.gold}`}}>
-        <Info size={14} color={B.gold} className="mt-0.5 flex-shrink-0"/>
-        <div>
-          <p className="text-xs font-black" style={{color:B.dark}}>Labour & Installation Included</p>
-          
-          
-        </div>
-      </div>
-      <div>
-        <p className="text-xs font-bold tracking-widest uppercase mb-0.5" style={{color:B.dark}}>Carcass Material</p>
-        <p className="text-[11px] mb-2" style={{color:"#9A8878"}}>The main body of all cabinets</p>
-        <div className="flex flex-col gap-2">
-          {Object.entries(PM.carcass).map(([id,m])=>{
-            const lm=LABOUR_MULT[m.matType];
-            const isWood=m.matType==="solid_wood";
-            return(<SelCard key={id} sel={carc===id} onSel={()=>setCarc(id)} color={m.color} label={m.label}
-              sub={isWood?"Solid Wood -- premium":"Melamine Board"}
-              badge={m.matType==="solid_wood"?"Solid Wood":"Melamine"}
-              badgeStyle={isWood?{background:B.gold,color:B.dark}:{background:carc===id?B.orange:"#F0EDE5",color:carc===id?B.white:"#9A8878"}}/>);
-          })}
-        </div>
-      </div>
-      <div>
-        <p className="text-xs font-bold tracking-widest uppercase mb-0.5" style={{color:B.dark}}>Countertop</p>
-        <p className="text-[11px] mb-2" style={{color:"#9A8878"}}>Floor, drawer & corner units only</p>
-        {/* Group tabs */}
-        {(()=>{
-          const [ctGroup,setCtGroup] = [
-            ["Formica","Quartz"].includes(PM.countertop[ct]?.group) ? PM.countertop[ct].group : "Formica",
-            (g)=>{ const first=Object.entries(PM.countertop).find(([,v])=>v.group===g); if(first&&PM.countertop[ct]?.group!==g) setCt(first[0]); }
-          ];
-          // Can't use hook inside render -- use inline state workaround via key
-          return null;
-        })()}
-        <CountertopPicker ct={ct} setCt={setCt}/>
-      </div>
-    </div>
-  );
-}
-
-// --- STEP 3: FINISHES --------------------------------------------------------
-function Step3({door,setDoor,handle,setHandle,placed}){
-  const totalLeaves  = placed.reduce((s,p)=>s+doorCount(cabDef(p.tid)),0);
-  const totalRunners = placed.reduce((s,p)=>s+runnerPairs(cabDef(p.tid)),0);
-  return(
-    <div className="flex flex-col gap-5">
-      {placed.length>0&&(
-        <div className="rounded-xl px-4 py-3 grid grid-cols-4 gap-2" style={{background:B.dark}}>
-          {[["Door Leaves",totalLeaves],["Hinges",totalLeaves*2],["Runner Pairs",totalRunners],["Handles",totalLeaves]].map(([lbl,val])=>(
-            <div key={lbl} className="text-center">
-              <p className="text-lg font-black" style={{color:B.gold}}>{val}</p>
-              <p className="text-[9px] tracking-widest uppercase leading-tight" style={{color:"#9A8878"}}>{lbl}</p>
-            </div>
-          ))}
-        </div>
-      )}
-      <div>
-        <p className="text-xs font-bold tracking-widest uppercase mb-0.5" style={{color:B.dark}}>Door Finish</p>
-        <p className="text-[11px] mb-2" style={{color:"#9A8878"}}>Applied to all placed cabinets -- live preview on grid</p>
-        <div className="grid grid-cols-2 gap-2">
-          {Object.entries(PM.doors).map(([id,d])=>(
-            <button key={id} onClick={()=>setDoor(id)}
-              className="rounded-xl overflow-hidden transition-all"
-              style={{border:`2px solid ${door===id?B.orange:"#E0D8CC"}`}}>
-              <div className="h-12 relative" style={{background:d.color}}>
-                {d.wood&&<div className="absolute inset-0 opacity-20" style={{backgroundImage:"repeating-linear-gradient(90deg,rgba(255,255,255,0.3) 0,rgba(255,255,255,0.3) 1px,transparent 1px,transparent 7px)"}}/>}
-                {door===id&&<div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full flex items-center justify-center" style={{background:B.orange}}><Check size={11} color={B.white}/></div>}
-              </div>
-              <div className="px-2 py-1.5" style={{background:door===id?B.dark:B.white}}>
-                <p className="text-[10px] font-bold" style={{color:door===id?B.white:B.dark}}>{d.label}</p>
-
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-      <div>
-        <p className="text-xs font-bold tracking-widest uppercase mb-0.5" style={{color:B.dark}}>Handles</p>
-        <p className="text-[11px] mb-2" style={{color:"#9A8878"}}>1 per door leaf  x  {totalLeaves} total</p>
-        <div className="flex flex-col gap-2">
-          {Object.entries(PM.handles).map(([id,h])=>(
-            <button key={id} onClick={()=>setHandle(id)}
-              className="flex items-center gap-3 rounded-xl px-4 py-3 w-full text-left transition-all"
-              style={{background:handle===id?B.dark:B.white,border:`1.5px solid ${handle===id?B.orange:"#E0D8CC"}`}}>
-              <div className="flex-1">
-                <span className="text-sm font-bold block" style={{color:handle===id?B.white:B.dark}}>{h.label}</span>
-                <span className="text-[10px]" style={{color:handle===id?"#C4B8A8":"#9A8878"}}>
-
-                </span>
-              </div>
-              {handle===id&&<Check size={14} color={B.orange}/>}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
-// --- STEP 4: LAYOUT PREVIEW --------------------------------------------------
-function StepPreview({placed, carc, ct, door, handle, cs}){
-  const carcM  = PM.carcass[carc];
-  const ctM    = PM.countertop[ct];
-  const drM    = PM.doors[door];
-  const hndM   = PM.handles[handle];
-  const doorColor = drM?.color || "#E0D8C8";
-  const floorUnits  = placed.filter(p=>["Floor","Corner"].includes(cabDef(p.tid).cat));
-  const wallUnits   = placed.filter(p=>cabDef(p.tid).cat==="Wall");
-  const tallUnits   = placed.filter(p=>cabDef(p.tid).cat==="Tall");
-  const drawerUnits = placed.filter(p=>cabDef(p.tid).isDrawer);
-
-  // Mini read-only grid -- same grid dimensions but rendered at reduced cell size
-  const previewCs = Math.max(7, cs - 2);
-  const gridW = GRID_COLS * previewCs;
-  const gridH = GRID_ROWS * previewCs;
-  const floorY = FLOOR_ROW * previewCs;
-
-  return(
-    <div className="flex flex-col gap-4">
-      {/* Mini grid preview */}
-      <div>
-        <p className="text-[9px] font-bold tracking-widest uppercase mb-2" style={{color:"#9A8878"}}>Layout with Selected Finishes</p>
-        <div className="overflow-x-auto rounded-xl" style={{border:"1.5px solid #C0B8AC"}}>
-          <div className="relative select-none pointer-events-none" style={{width:gridW,height:gridH}}>
-            <div className="absolute inset-0" style={{background:"#F2EDE4"}}/>
-            <div className="absolute" style={{top:0,left:0,right:0,height:floorY,background:"#EDE7DC"}}/>
-            <div className="absolute" style={{top:floorY,left:0,right:0,bottom:0,background:"#E8E0D4"}}/>
-            {/* Countertop band -- floor/corner/drawer units only, not tall or appliances */}
-            {(()=>{
-              // Only units that physically get a countertop: Floor (incl drawers) + Corner, NOT Tall, NOT appliances
-              const ctEligible = placed.filter(p=>{
-                const c = cabDef(p.tid);
-                return c && ["Floor","Corner"].includes(c.cat) && !APPLIANCES[p.tid];
-              });
-              if(!ctEligible.length) return null;
-              // Render one band per contiguous group of eligible units
-              const sorted = [...ctEligible].sort((a,b)=>a.col-b.col);
-              // Build contiguous spans
-              const spans=[];
-              let spanStart=sorted[0], spanEnd=sorted[0];
-              for(let i=1;i<sorted.length;i++){
-                const prev=cabDef(spanEnd.tid);
-                const cur=sorted[i];
-                // contiguous if cur starts where prev ends
-                if(cur.col === spanEnd.col+(prev.wC||0)){
-                  spanEnd=cur;
-                } else {
-                  spans.push({start:spanStart,end:spanEnd});
-                  spanStart=cur; spanEnd=cur;
-                }
-              }
-              spans.push({start:spanStart,end:spanEnd});
-              return spans.map((sp,i)=>{
-                const startCab=cabDef(sp.start.tid);
-                const endCab=cabDef(sp.end.tid);
-                const left=sp.start.col*previewCs;
-                const right=(sp.end.col+(endCab.wC||0))*previewCs;
-                return <div key={i} className="absolute pointer-events-none"
-                  style={{left,top:floorY-previewCs*0.6,height:previewCs*0.6,width:right-left,
-                    background:ctM?.color||"#C8C0B0",opacity:0.9,zIndex:6}}/>;
-              });
-            })()}
-            <svg className="absolute inset-0 pointer-events-none" width={gridW} height={gridH}>
-              {Array.from({length:GRID_COLS+1}).map((_,i)=>(
-                <line key={`v${i}`} x1={i*previewCs} y1={0} x2={i*previewCs} y2={gridH} stroke={i%6===0?"#C0B8AC":"#DDD8D0"} strokeWidth={i%6===0?0.6:0.3}/>
-              ))}
-              {Array.from({length:GRID_ROWS+1}).map((_,i)=>(
-                <line key={`h${i}`} x1={0} y1={i*previewCs} x2={gridW} y2={i*previewCs} stroke={i===FLOOR_ROW?B.orange:"#DDD8D0"} strokeWidth={i===FLOOR_ROW?1.2:0.3}/>
-              ))}
+// ─── Footer Component ──────────────────────────────────────────────────────────
+function HWHFooter() {
+  return (
+    <footer style={{ background:"#1A1614", color:"#C8B8A8", fontFamily:"'Trebuchet MS',sans-serif", padding:"40px 24px 24px", borderTop:"3px solid #D96339" }}>
+      <div style={{ maxWidth:960, margin:"0 auto" }}>
+        {/* Logo + Nav */}
+        <div style={{ display:"flex", flexWrap:"wrap", gap:32, alignItems:"flex-start", justifyContent:"space-between", marginBottom:28 }}>
+          {/* Logo */}
+          <a href="https://hwhdesigns.co.za" rel="dofollow" style={{ textDecoration:"none", display:"flex", alignItems:"center", gap:12 }}>
+            <svg viewBox="0 0 48 16" width={48} height={16}>
+              <circle cx="8"  cy="8" r="8" fill="#D96339"/>
+              <polygon points="8,3.3 12.7,8 8,12.7 3.3,8" fill="#EBBD46"/>
+              <circle cx="8"  cy="8" r="1.8" fill="#1A1A1A"/>
+              <circle cx="24" cy="8" r="8" fill="#1A1A1A"/>
+              <polygon points="24,3.3 28.7,8 24,12.7 19.3,8" fill="#FFFFFF"/>
+              <circle cx="24" cy="8" r="1.8" fill="#D96339"/>
+              <circle cx="40" cy="8" r="8" fill="#EBBD46"/>
+              <polygon points="40,3.3 44.7,8 40,12.7 35.3,8" fill="#D96339"/>
+              <circle cx="40" cy="8" r="1.8" fill="#1A1A1A"/>
             </svg>
-            <div className="absolute pointer-events-none" style={{top:floorY,left:0,right:0,height:1.5,background:B.orange,opacity:0.8}}/>
-            {placed.map(p=>{
-              const cab=APPLIANCES[p.tid]||PM.cabinets[p.tid];
-              if(!cab) return null;
-              return(
-                <div key={p.id} className="absolute" style={{left:p.col*previewCs,top:p.row*previewCs,width:cab.wC*previewCs,height:cab.hC*previewCs,zIndex:5}}>
-                  {APPLIANCES[p.tid]
-                    ? <ApplianceSVG aid={p.tid} cs={previewCs} sel={false}/>
-                    : <CabSVG tid={p.tid} cs={previewCs} doorColor={doorColor} doorKey={door} sel={false} handleKey={handle}/>}
-                </div>
-              );
-            })}
+            <span style={{ fontSize:13, letterSpacing:3, color:"#F0EDE8", fontWeight:"bold", textTransform:"uppercase" }}>HWH Designs</span>
+          </a>
+          {/* Nav links */}
+          <nav style={{ display:"flex", flexWrap:"wrap", gap:"8px 24px" }}>
+            {[
+              ["Portfolio",    "https://hwhdesigns.co.za/portfolio"],
+              ["About",        "https://hwhdesigns.co.za/about"],
+              ["Services",     "https://hwhdesigns.co.za/services"],
+              ["Contact",      "https://hwhdesigns.co.za/contact"],
+              ["Meet the Team","https://hwhdesigns.co.za/meet-the-team"],
+              ["Kitchen Guide","https://hwhdesigns.co.za/kitchen-guide"],
+            ].map(([label, href]) => (
+              <a key={label} href={href} rel="dofollow"
+                style={{ color:"#C8B8A8", textDecoration:"none", fontSize:11, letterSpacing:1.5, textTransform:"uppercase",
+                  transition:"color 0.2s" }}
+                onMouseEnter={e=>e.target.style.color="#D96339"}
+                onMouseLeave={e=>e.target.style.color="#C8B8A8"}>
+                {label}
+              </a>
+            ))}
+          </nav>
+          {/* Social icons */}
+          <div style={{ display:"flex", gap:12, alignItems:"center" }}>
+            <a href="https://www.instagram.com/hwhdesigns" rel="dofollow" aria-label="HWH Designs on Instagram"
+              style={{ color:"#C8B8A8", textDecoration:"none", fontSize:20, lineHeight:1 }}
+              onMouseEnter={e=>e.target.style.color="#D96339"} onMouseLeave={e=>e.target.style.color="#C8B8A8"}>
+              <svg viewBox="0 0 24 24" width={20} height={20} fill="currentColor">
+                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+              </svg>
+            </a>
+            <a href="https://www.facebook.com/hwhdesigns" rel="dofollow" aria-label="HWH Designs on Facebook"
+              style={{ color:"#C8B8A8", textDecoration:"none", lineHeight:1 }}
+              onMouseEnter={e=>e.target.style.color="#D96339"} onMouseLeave={e=>e.target.style.color="#C8B8A8"}>
+              <svg viewBox="0 0 24 24" width={20} height={20} fill="currentColor">
+                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+              </svg>
+            </a>
           </div>
         </div>
-      </div>
 
-      {/* Selection summary cards */}
-      <div className="grid grid-cols-2 gap-2">
-        {[
-          {label:"Carcass",  val:carcM?.label||"--",  color:carcM?.color||"#F0EDE5"},
-          {label:"Countertop",val:ctM?.label||"--",   color:ctM?.color||"#C8C0B0"},
-          {label:"Door Finish",val:drM?.label||"--",  color:drM?.color||"#F0F0EC"},
-          {label:"Handles",  val:hndM?.label||"--",   color:B.dark},
-        ].map(item=>(
-          <div key={item.label} className="rounded-xl overflow-hidden" style={{border:"1.5px solid #E0D8CC"}}>
-            <div className="h-8" style={{background:item.color}}/>
-            <div className="px-3 py-2" style={{background:B.white}}>
-              <p className="text-[9px] font-bold tracking-widest uppercase" style={{color:"#9A8878"}}>{item.label}</p>
-              <p className="text-xs font-black" style={{color:B.dark}}>{item.val}</p>
-            </div>
-          </div>
-        ))}
-      </div>
+        {/* Divider */}
+        <div style={{ borderTop:"1px solid rgba(255,255,255,0.08)", paddingTop:16, marginBottom:12 }}/>
 
-      {/* Unit count summary */}
-      <div className="rounded-xl overflow-hidden" style={{border:"1.5px solid #E0D8CC"}}>
-        <div className="px-4 py-2" style={{background:B.parchment}}>
-          <p className="text-[9px] font-bold tracking-widest uppercase" style={{color:"#9A8878"}}>Layout Summary</p>
-        </div>
-        <div className="grid grid-cols-4 divide-x" style={{borderTop:"1px solid #E0D8CC",borderColor:"#E0D8CC"}}>
+        {/* Service areas */}
+        <p style={{ fontSize:10, color:"#A09080", lineHeight:1.8, marginBottom:12 }}>
+          Proudly serving{" "}
           {[
-            {label:"Floor",  val:floorUnits.filter(p=>!cabDef(p.tid).isDrawer).length},
-            {label:"Drawer", val:drawerUnits.length},
-            {label:"Wall",   val:wallUnits.length},
-            {label:"Tall",   val:tallUnits.length},
-          ].map((m,i)=>(
-            <div key={m.label} className="text-center py-3" style={{borderRight:i<3?"1px solid #E0D8CC":"none",background:B.white}}>
-              <p className="text-lg font-black" style={{color:B.dark}}>{m.val}</p>
-              <p className="text-[9px] font-bold tracking-widest uppercase" style={{color:"#9A8878"}}>{m.label}</p>
-            </div>
+            ["Johannesburg","https://hwhdesigns.co.za/kitchen-designers-johannesburg"],
+            ["Sandton",     "https://hwhdesigns.co.za/kitchen-designers-sandton"],
+            ["Bryanston",   "https://hwhdesigns.co.za/kitchen-designers-bryanston"],
+            ["Waterfall",   "https://hwhdesigns.co.za/kitchen-designers-waterfall"],
+          ].map(([city, href], i, arr) => (
+            <span key={city}>
+              <a href={href} rel="dofollow"
+                style={{ color:"#C8B8A8", textDecoration:"underline", textDecorationColor:"rgba(217,99,57,0.4)" }}>
+                {city}
+              </a>{i < arr.length-1 ? ", " : ""}
+            </span>
           ))}
-        </div>
-        <div className="grid grid-cols-3 divide-x" style={{borderTop:"1px solid #E0D8CC",borderColor:"#E0D8CC"}}>
-          {[
-            {label:"Floor Run",  val:([...floorUnits,...tallUnits].reduce((s,p)=>s+cabDef(p.tid).wMm,0)/1000).toFixed(2)+"m"},
-            {label:"Wall Run",   val:(wallUnits.reduce((s,p)=>s+cabDef(p.tid).wMm,0)/1000).toFixed(2)+"m"},
-            {label:"Countertop", val:(floorUnits.reduce((s,p)=>s+cabDef(p.tid).wMm,0)/1000).toFixed(2)+"m"},
-          ].map((m,i)=>(
-            <div key={m.label} className="text-center py-2" style={{borderRight:i<2?"1px solid #E0D8CC":"none",background:B.parchment}}>
-              <p className="text-sm font-black" style={{color:B.dark}}>{m.val}</p>
-              <p className="text-[9px] font-bold tracking-widest uppercase" style={{color:B.orange}}>{m.label}</p>
-            </div>
-          ))}
-        </div>
-      </div>
+          {" "}and surrounding Gauteng areas — custom built-in kitchens, joinery & interior design.
+        </p>
 
-      <div className="rounded-xl px-4 py-3 flex gap-2 items-center" style={{background:"#FFF8EC",border:`1.5px solid ${B.gold}`}}>
-        <Info size={13} color={B.gold} className="flex-shrink-0"/>
-        <p className="text-[11px]" style={{color:"#9A6A00"}}>Happy with your layout and selections? Proceed to view your full itemised quote.</p>
-      </div>
-    </div>
-  );
-}
-
-
-// --- CABINET DEPTH LOOKUP (mm) ------------------------------------------------
-const CAB_DEPTH = { Floor:600, Corner:600, Tall:600, Wall:350 };
-const PANEL_T   = 18;  // standard board thickness mm
-const SHEET_W   = 2750;
-const SHEET_H   = 1830;
-
-// Build full cutting spec for one placed unit
-function cuttingSpec(tid, carcLabel) {
-  const cab  = PM.cabinets[tid];
-  if (!cab) return { tid, label: tid, w:0, d:0, panels:[] }; // guard for appliances
-  const w    = cab.wMm;
-  const d    = CAB_DEPTH[cab.cat] || 600;
-  const t    = PANEL_T;
-
-  // Inner width / depth after side panels
-  const iw = w - t*2;
-  const id = d - t;   // back panel flush
-
-  let panels = [];
-  let note   = "";
-
-  if (cab.cat === "Wall") {
-    const h = 700;
-    panels = [
-      {part:"Left Side",    qty:1, l:h,    w:d,  note:""},
-      {part:"Right Side",   qty:1, l:h,    w:d,  note:""},
-      {part:"Top Panel",    qty:1, l:iw,   w:d,  note:""},
-      {part:"Bottom Panel", qty:1, l:iw,   w:d,  note:""},
-      {part:"Back Panel",   qty:1, l:iw,   w:h,  note:"12mm back"},
-      {part:"Shelf",        qty:1, l:iw,   w:id, note:"adjustable"},
-      {part:"Door Face",    qty:cab.wC<9?1:2, l:Math.round((h-4)/1), w:cab.wC<9?w-4:Math.round((w-6)/2), note:"finished size"},
-    ];
-  } else if (cab.isDrawer) {
-    const h = 570; // body height (720 - 150 kick)
-    const dh = Math.round((h - 4*3) / 3); // drawer front height
-    panels = [
-      {part:"Left Side",      qty:1, l:h,    w:d,  note:""},
-      {part:"Right Side",     qty:1, l:h,    w:d,  note:""},
-      {part:"Top Panel",      qty:1, l:iw,   w:d,  note:""},
-      {part:"Bottom Panel",   qty:1, l:iw,   w:d,  note:""},
-      {part:"Back Panel",     qty:1, l:iw,   w:h,  note:"12mm back"},
-      {part:"Drawer Box Side",qty:6, l:id-50,w:130, note:"x3 boxes"},
-      {part:"Drawer Box Front/Back",qty:6, l:iw-50,w:130, note:"x3 boxes"},
-      {part:"Drawer Box Base",qty:3, l:iw-50,w:id-50, note:"6mm ply"},
-      {part:"Drawer Front",   qty:3, l:w-4,  w:dh, note:"finished size"},
-      {part:"Kick Plate",     qty:1, l:w,    w:150, note:""},
-    ];
-  } else if (cab.cat === "Tall") {
-    const h = 2450; // body only (excl kick + filler)
-    panels = [
-      {part:"Left Side",    qty:1, l:h,    w:d,  note:""},
-      {part:"Right Side",   qty:1, l:h,    w:d,  note:""},
-      {part:"Top Panel",    qty:1, l:iw,   w:d,  note:""},
-      {part:"Bottom Panel", qty:1, l:iw,   w:d,  note:""},
-      {part:"Mid Shelf",    qty:1, l:iw,   w:id, note:"fixed mid"},
-      {part:"Shelf",        qty:2, l:iw,   w:id, note:"adjustable"},
-      {part:"Back Panel",   qty:1, l:iw,   w:h,  note:"12mm back -- may splice"},
-      {part:"Door Face",    qty:2, l:Math.round((h/2)-4), w:Math.round((w-6)/2), note:"upper pair"},
-      {part:"Door Face",    qty:2, l:Math.round((h/2)-4), w:Math.round((w-6)/2), note:"lower pair"},
-      {part:"Kick Plate",   qty:1, l:w,    w:150, note:""},
-      {part:"Filler Strip", qty:1, l:w,    w:150, note:"top closure"},
-    ];
-  } else {
-    // Floor / Corner
-    const h = 570; // 720 - 150 kick
-    panels = [
-      {part:"Left Side",    qty:1, l:h,    w:d,  note:""},
-      {part:"Right Side",   qty:1, l:h,    w:d,  note:""},
-      {part:"Top Panel",    qty:1, l:iw,   w:d,  note:""},
-      {part:"Bottom Panel", qty:1, l:iw,   w:d,  note:""},
-      {part:"Back Panel",   qty:1, l:iw,   w:h,  note:"12mm back"},
-      {part:"Shelf",        qty:1, l:iw,   w:id, note:"adjustable"},
-      {part:"Door Face",    qty:2, l:h-4,  w:Math.round((w-6)/2), note:"finished size"},
-      {part:"Kick Plate",   qty:1, l:w,    w:150, note:""},
-    ];
-  }
-  return { tid, label:cab.label, w, d, panels };
-}
-
-// --- STEP 5: QUOTE ------------------------------------------------------------
-function Step5Quote({placed, carc, ct, door, handle}){
-  const q     = calcQ(placed,carc,ct,door,handle);
-  const carcM = PM.carcass[carc];
-  const lm    = carcM ? LABOUR_MULT[carcM.matType] : 4.0;
-  const lines = [
-    {label:"Cabinet Carcasses + Labour", sub:`${placed.filter(p=>!APPLIANCES[p.tid]).length} units  x  ${carcM?.label}`, val:q.cab},
-    {label:"Countertop",                 sub:`${(q.ctMm/1000).toFixed(2)}m  x  ${PM.countertop[ct]?.label}`,    val:q.ctr},
-    {label:"Door Faces",                 sub:`${q.totalDoorLeaves} leaves  x  ${PM.doors[door]?.label}`,         val:q.dr},
-    {label:"Hinges",                     sub:`${q.totalDoorLeaves*2} @ ${fmt(HINGE_PRICE)} each`,              val:q.hinges},
-    {label:"Drawer Runners",             sub:`${q.totalRunnerPairs} pairs @ ${fmt(RUNNER_PRICE)} each`,        val:q.runners},
-    {label:"Handles / Ironmongery",      sub:`${q.totalDoorLeaves}  x  ${PM.handles[handle]?.label}`,            val:q.hnd},
-  ];
-
-  // Contact form state -- gates the full breakdown
-  const [submitted, setSubmitted] = useState(false);
-  const [name,  setName]  = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [formErr, setFormErr] = useState("");
-
-  function handleSubmit(){
-    if(!name.trim())          { setFormErr("Please enter your name."); return; }
-    if(!phone.trim())         { setFormErr("Please enter your contact number."); return; }
-    if(!email.trim()||!email.includes("@")){ setFormErr("Please enter a valid email address."); return; }
-    setFormErr("");
-
-    // Build mailto body with contact details + full summary
-    const body = [
-      "Hi Kim,",
-      "",
-      "A client has submitted a quote request via the HWH Designs Configurator.",
-      "",
-      "--- CLIENT DETAILS ---",
-      "Name:  " + name,
-      "Phone: " + phone,
-      "Email: " + email,
-      "",
-      "--- CONFIGURATION ---",
-      "Carcass:    " + (carcM?.label||""),
-      "Countertop: " + (PM.countertop[ct]?.label||""),
-      "Door Finish:" + (PM.doors[door]?.label||""),
-      "Handles:    " + (PM.handles[handle]?.label||""),
-      "",
-      "--- LAYOUT ---",
-      ...placed.filter(p=>!APPLIANCES[p.tid]).map(p=>cabDef(p.tid).label + " @ " + (p.col*100) + "mm"),
-      "",
-      "--- ESTIMATED TOTAL ---",
-      "R " + Math.round(q.total).toLocaleString("en-ZA") + " (excl. VAT)",
-      "",
-      "Please follow up with the client to confirm measurements and arrange a site visit.",
-    ].join("\n");
-
-    const mailto = "mailto:kim@hwhdesigns.co.za" +
-      "?subject=" + encodeURIComponent("HWH Quote Request - " + name) +
-      "&body="    + encodeURIComponent(body);
-
-    window.location.href = mailto;
-    setSubmitted(true);
-  }
-
-  return(
-    <div className="flex flex-col gap-4">
-      {/* Config card -- always visible */}
-      <div className="rounded-2xl p-4 flex gap-3 items-center" style={{background:B.dark}}>
-        <div className="w-12 h-12 rounded-xl flex-shrink-0" style={{background:PM.doors[door]?.color||B.orange}}/>
-        <div>
-          <p className="text-[10px] tracking-widest uppercase font-bold" style={{color:B.gold}}>Your Configuration</p>
-          <p className="text-sm font-bold" style={{color:B.white}}>{carcM?.label}</p>
-          <p className="text-xs" style={{color:"#C4B8A8"}}>{PM.countertop[ct]?.label}  x  {PM.doors[door]?.label}</p>
-        </div>
-      </div>
-
-      {/* Layout run summary -- always visible */}
-      <div className="rounded-2xl overflow-hidden" style={{border:"1.5px solid #E0D8CC"}}>
-        <div className="px-4 py-2" style={{background:B.parchment}}>
-          <p className="text-[9px] font-bold tracking-widest uppercase" style={{color:"#9A8878"}}>Layout Summary</p>
-        </div>
-        <div className="grid grid-cols-3 divide-x" style={{borderTop:"1px solid #E0D8CC",borderColor:"#E0D8CC"}}>
-          {[
-            {label:"Floor Run",  sub:"floor, corner & tall", val:(placed.filter(p=>["Floor","Corner","Tall"].includes(cabDef(p.tid).cat)).reduce((s,p)=>s+cabDef(p.tid).wMm,0)/1000).toFixed(2)+"m"},
-            {label:"Wall Run",   sub:"wall-hung units",      val:(placed.filter(p=>cabDef(p.tid).cat==="Wall").reduce((s,p)=>s+cabDef(p.tid).wMm,0)/1000).toFixed(2)+"m"},
-            {label:"Countertop", sub:"worktop linear run",   val:(placed.filter(p=>["Floor","Corner"].includes(cabDef(p.tid).cat)).reduce((s,p)=>s+cabDef(p.tid).wMm,0)/1000).toFixed(2)+"m"},
-          ].map((m,i)=>(
-            <div key={m.label} className="text-center px-2 py-3" style={{borderRight:i<2?"1px solid #E0D8CC":"none",background:B.white}}>
-              <p className="text-xl font-black leading-none mb-0.5" style={{color:B.dark}}>{m.val}</p>
-              <p className="text-[9px] font-bold tracking-widest uppercase" style={{color:B.orange}}>{m.label}</p>
-              <p className="text-[9px]" style={{color:"#9A8878"}}>{m.sub}</p>
-            </div>
-          ))}
-        </div>
-        <div className="px-4 py-2 flex justify-between" style={{background:B.parchment,borderTop:"1px solid #E0D8CC"}}>
-          <span className="text-[10px]" style={{color:"#9A8878"}}>{placed.filter(p=>!APPLIANCES[p.tid]).length} units total</span>
-          <span className="text-[10px] font-bold" style={{color:B.dark}}>
-            {placed.filter(p=>cabDef(p.tid).cat==="Tall").length} tall  x  {placed.filter(p=>["Floor","Corner"].includes(cabDef(p.tid).cat)&&!cabDef(p.tid).isDrawer).length} floor  x  {placed.filter(p=>cabDef(p.tid).isDrawer).length} drawer  x  {placed.filter(p=>cabDef(p.tid).cat==="Wall").length} wall
+        {/* Copyright */}
+        <div style={{ display:"flex", flexWrap:"wrap", gap:8, justifyContent:"space-between", alignItems:"center", fontSize:9, color:"#706050", letterSpacing:0.5 }}>
+          <span>© {new Date().getFullYear()} <a href="https://hwhdesigns.co.za" rel="dofollow" style={{ color:"#A09080", textDecoration:"none" }}>HWH Designs</a>. All rights reserved.</span>
+          <span>
+            Configurator by{" "}
+            <a href="https://revyourbusiness.co.za" rel="dofollow"
+              style={{ color:"#D96339", textDecoration:"none", fontWeight:"bold", letterSpacing:1 }}>
+              REV Improvement Consulting
+            </a>
           </span>
         </div>
       </div>
+    </footer>
+  );
+}
 
-      {/* Estimated total -- always visible but blurred until submitted */}
-      <div className="rounded-2xl px-5 py-4 flex items-center justify-between" style={{background:B.dark}}>
-        <div>
-          <p className="text-xs font-bold tracking-widest uppercase" style={{color:B.gold}}>Estimated Total</p>
-          <p className="text-[10px]" style={{color:"#9A8878"}}>excl. VAT</p>
+// ─── Landing Page ───────────────────────────────────────────────────────────────
+function LandingPage({ onStart }) {
+  const steps = [
+    { num:"01", icon:"📐", title:"Set Your Wall Width", body:"Enter your kitchen wall measurement in millimetres. The canvas scales to your exact space." },
+    { num:"02", icon:"🪵", title:"Place Your Cabinets", body:"Drag units from the palette onto the wall — or tap ＋ on mobile. Mix base, drawer, wall, tall and corner units. Drop appliance placeholders to visualise your space." },
+    { num:"03", icon:"🎨", title:"Choose Materials", body:"Select your carcass build, countertop type and colour from the full Quartz, Formica and Marble range." },
+    { num:"04", icon:"✨", title:"Apply Door Finishes", body:"Pick your Supamatt, Supagloss or Wood Grain door finish per cabinet — or apply one to the entire run at once." },
+    { num:"05", icon:"📋", title:"Get Your Quote", body:"Review the itemised build spec, run metres and estimated cost, then submit directly to Kim at HWH Designs." },
+  ];
+  return (
+    <div style={{ minHeight:"100vh", background:"#F2EEE8", fontFamily:"'Trebuchet MS',sans-serif", display:"flex", flexDirection:"column" }}>
+      {/* Hero */}
+      <div style={{ background:"#2A1D16", color:"#F0EDE8", padding:"48px 24px 40px", textAlign:"center", position:"relative", overflow:"hidden" }}>
+        {/* Subtle texture lines */}
+        <div style={{ position:"absolute", inset:0, backgroundImage:"repeating-linear-gradient(90deg,rgba(217,99,57,0.04) 0,rgba(217,99,57,0.04) 1px,transparent 1px,transparent 80px)", pointerEvents:"none" }}/>
+        <div style={{ position:"relative" }}>
+          <a href="https://hwhdesigns.co.za" rel="dofollow" style={{ display:"inline-flex", alignItems:"center", gap:12, textDecoration:"none", marginBottom:28 }}>
+            <svg viewBox="0 0 48 16" width={52} height={18}>
+              <circle cx="8"  cy="8" r="8" fill="#D96339"/>
+              <polygon points="8,3.3 12.7,8 8,12.7 3.3,8" fill="#EBBD46"/>
+              <circle cx="8"  cy="8" r="1.8" fill="#1A1A1A"/>
+              <circle cx="24" cy="8" r="8" fill="#1A1A1A"/>
+              <polygon points="24,3.3 28.7,8 24,12.7 19.3,8" fill="#FFFFFF"/>
+              <circle cx="24" cy="8" r="1.8" fill="#D96339"/>
+              <circle cx="40" cy="8" r="8" fill="#EBBD46"/>
+              <polygon points="40,3.3 44.7,8 40,12.7 35.3,8" fill="#D96339"/>
+              <circle cx="40" cy="8" r="1.8" fill="#1A1A1A"/>
+            </svg>
+            <span style={{ fontSize:11, letterSpacing:4, color:"#C8B8A8", textTransform:"uppercase" }}>HWH Designs</span>
+          </a>
+          <h1 style={{ fontSize:"clamp(22px,5vw,38px)", fontWeight:"bold", letterSpacing:1, marginBottom:12, lineHeight:1.2 }}>
+            Kitchen Cabinet Configurator
+          </h1>
+          <p style={{ fontSize:"clamp(12px,2.5vw,15px)", color:"#C8B8A8", maxWidth:540, margin:"0 auto 32px", lineHeight:1.7 }}>
+            Design your custom built-in kitchen online. Choose cabinet sizes, countertops, door finishes and get an instant indicative quote — then submit directly to our team.
+          </p>
+          <button onClick={onStart} style={{ background:"#D96339", color:"#FFFFFF", border:"none", borderRadius:6, padding:"14px 40px", fontSize:13, fontWeight:"bold", letterSpacing:2, textTransform:"uppercase", cursor:"pointer", fontFamily:"inherit", boxShadow:"0 4px 24px rgba(217,99,57,0.45)", transition:"transform 0.15s" }}
+            onMouseEnter={e=>e.currentTarget.style.transform="scale(1.04)"}
+            onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}>
+            Start Designing →
+          </button>
+          <p style={{ marginTop:12, fontSize:10, color:"rgba(200,184,168,0.6)", letterSpacing:1 }}>FREE · No account required · Takes 2–5 minutes</p>
         </div>
-        <p className="text-2xl font-black transition-all"
-          style={{color:B.white, filter:submitted?"none":"blur(6px)", userSelect:submitted?"auto":"none"}}>
-          {fmt(q.total)}
-        </p>
       </div>
 
-      {/* ── CONTACT FORM (hidden after submit) ── */}
-      {!submitted&&(
-        <div className="rounded-2xl p-4 flex flex-col gap-3" style={{border:`1.5px solid ${B.orange}`,background:B.white}}>
-          <div>
-            <p className="text-xs font-black tracking-widest uppercase mb-0.5" style={{color:B.dark}}>Request Your Full Quote</p>
-            <p className="text-[11px]" style={{color:"#9A8878"}}>Enter your details and Kim will be in touch to finalise your quote and arrange a site visit.</p>
-          </div>
-          {[
-            {label:"Full Name",       val:name,  set:setName,  type:"text",  ph:"Your name"},
-            {label:"Contact Number",  val:phone, set:setPhone, type:"tel",   ph:"e.g. 082 000 0000"},
-            {label:"Email Address",   val:email, set:setEmail, type:"email", ph:"your@email.com"},
-          ].map(f=>(
-            <div key={f.label}>
-              <p className="text-[10px] font-bold mb-1" style={{color:B.dark}}>{f.label}</p>
-              <input
-                type={f.type}
-                value={f.val}
-                placeholder={f.ph}
-                onChange={e=>f.set(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl text-sm"
-                style={{border:`1.5px solid #E0D8CC`,background:B.parchment,color:B.dark,outline:"none",fontFamily:"inherit"}}
-              />
+      {/* How to use */}
+      <div style={{ flex:1, padding:"44px 24px 48px", maxWidth:900, margin:"0 auto", width:"100%" }}>
+        <div style={{ textAlign:"center", marginBottom:36 }}>
+          <div style={{ fontSize:9, letterSpacing:4, color:"#D96339", textTransform:"uppercase", marginBottom:8 }}>How it works</div>
+          <h2 style={{ fontSize:"clamp(16px,3vw,22px)", color:"#2A1D16", fontWeight:"bold", letterSpacing:0.5 }}>
+            Five steps to your perfect kitchen
+          </h2>
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))", gap:20 }}>
+          {steps.map(s => (
+            <div key={s.num} style={{ background:"#FAFAF7", border:"1px solid #E0D8CE", borderRadius:10, padding:"22px 20px", position:"relative", overflow:"hidden" }}>
+              <div style={{ position:"absolute", top:14, right:16, fontSize:32, opacity:0.07, fontWeight:"bold", color:"#2A1D16", letterSpacing:-1 }}>{s.num}</div>
+              <div style={{ fontSize:26, marginBottom:10 }}>{s.icon}</div>
+              <div style={{ fontSize:11, fontWeight:"bold", color:"#2A1D16", letterSpacing:0.5, marginBottom:6 }}>{s.title}</div>
+              <div style={{ fontSize:11, color:"#7A6658", lineHeight:1.7 }}>{s.body}</div>
             </div>
           ))}
-          {formErr&&<p className="text-[11px] font-bold" style={{color:"#C03020"}}>{formErr}</p>}
-          <button onClick={handleSubmit}
-            className="w-full py-3.5 rounded-xl font-black tracking-widest uppercase text-sm active:scale-95 transition-all"
-            style={{background:B.orange,color:B.white}}>
-            Submit & View Full Quote ->
-          </button>
-        </div>
-      )}
-
-      {/* ── FULL BREAKDOWN (revealed after submit) ── */}
-      {submitted&&(<>
-        <div className="rounded-xl px-4 py-2.5 flex gap-2 items-center" style={{background:"#F0F8F0",border:"1.5px solid #4A8A4A"}}>
-          <Check size={14} color="#4A8A4A" className="flex-shrink-0"/>
-          <p className="text-[11px] font-bold" style={{color:"#2A6A2A"}}>Quote request sent to Kim. She will be in touch shortly.</p>
+          {/* CTA card */}
+          <div style={{ background:"#D96339", borderRadius:10, padding:"22px 20px", display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center", textAlign:"center" }}>
+            <div style={{ fontSize:26, marginBottom:10 }}>🏠</div>
+            <div style={{ fontSize:11, fontWeight:"bold", color:"#FFFFFF", letterSpacing:0.5, marginBottom:10 }}>Ready to design?</div>
+            <button onClick={onStart} style={{ background:"#FFFFFF", color:"#D96339", border:"none", borderRadius:5, padding:"10px 24px", fontSize:11, fontWeight:"bold", letterSpacing:1.5, textTransform:"uppercase", cursor:"pointer", fontFamily:"inherit" }}>
+              Open Configurator
+            </button>
+          </div>
         </div>
 
-        <div className="rounded-2xl overflow-hidden" style={{border:"1.5px solid #E0D8CC"}}>
-          {lines.map((l,i)=>(
-            <div key={i} className="flex justify-between px-4 py-3"
-              style={{borderBottom:i<lines.length-1?"1px solid #E0D8CC":"none",background:i%2===0?B.white:B.parchment}}>
-              <div><p className="text-xs font-bold" style={{color:B.dark}}>{l.label}</p><p className="text-[10px]" style={{color:"#9A8878"}}>{l.sub}</p></div>
-              <p className="text-sm font-bold" style={{color:B.dark}}>{fmt(l.val)}</p>
-            </div>
+        {/* Feature pills */}
+        <div style={{ display:"flex", flexWrap:"wrap", gap:10, justifyContent:"center", marginTop:36 }}>
+          {["37 Quartz colours","10 Formica surfaces","4 Marble options","Supamatt · Supagloss · Wood Grain doors","750 → 900mm unit widths","Soft-close hardware only","Appliance placeholders","Instant indicative quote"].map(f => (
+            <span key={f} style={{ background:"#EDE6DC", color:"#5A4A3A", fontSize:10, padding:"5px 12px", borderRadius:20, letterSpacing:0.5 }}>{f}</span>
           ))}
         </div>
+      </div>
 
-        <div className="flex items-start gap-2 rounded-xl px-3 py-2" style={{background:"#FFF8EC"}}>
-          <Info size={12} color={B.gold} className="mt-0.5 flex-shrink-0"/>
-          <p className="text-[11px]" style={{color:"#9A6A00"}}>Estimated quote only. VAT and site survey adjustments not included.</p>
-        </div>
+      <HWHFooter/>
+    </div>
+  );
+}
 
-        {/* Cabinet schedule */}
-        <div className="rounded-2xl overflow-hidden" style={{border:"1.5px solid #E0D8CC"}}>
-          <div className="px-4 py-2.5" style={{background:B.parchment}}>
-            <p className="text-[9px] font-bold tracking-widest uppercase" style={{color:"#9A8878"}}>Cabinet Schedule</p>
-          </div>
-          {(()=>{
-            const groups = {};
-            q.details.forEach(d=>{
-              if(!groups[d.label]) groups[d.label]={label:d.label,qty:0,total:0};
-              groups[d.label].qty++;
-              groups[d.label].total += d.unitBase+d.doorCost+d.hingeCost+d.runnerCost+d.handleCost;
-            });
-            const rows = Object.values(groups);
-            return rows.map((g,i)=>(
-              <div key={g.label} className="flex items-center justify-between px-4 py-3"
-                style={{borderBottom:i<rows.length-1?"1px solid #E0D8CC":"none",background:i%2===0?B.white:B.parchment}}>
-                <div>
-                  <p className="text-xs font-black" style={{color:B.dark}}>{g.label}</p>
-                  <p className="text-[10px]" style={{color:"#9A8878"}}>Qty: {g.qty}</p>
-                </div>
-                <p className="text-sm font-black" style={{color:B.dark}}>{fmt(g.total)}</p>
-              </div>
+// ─── Cabinet SVG ──────────────────────────────────────────────────────────────
+function CabinetSVG({ unit, pxPerMm, selected, ctColour }) {
+  const W           = unit.width  * pxPerMm;
+  const H           = unit.height * pxPerMm;
+  const f           = getFinish(unit.finish || DEFAULT_FINISH);
+  const hw          = HARDWARE.find(h => h.id === (unit.hardware || DEFAULT_HW));
+  const isWood      = f.type === "wood";
+  const isGloss     = f.type === "gloss";
+  const isBase      = unit.type === "base";
+  const isDrawer    = unit.type === "drawer";
+  const isCorner    = unit.type === "corner";
+  const isUpper     = unit.type === "upper";
+  const isTallSingle= unit.type === "tall-single";
+  const isTallDouble= unit.type === "tall-double";
+  const isTall      = isTallSingle || isTallDouble;
+  const isFloor     = FLOOR_TYPES.includes(unit.type);
+  const uid         = `${_S}_${unit.id}`;
+
+  // Door count: base/upper 450=1, 600/800=2; tall-single always 1; tall-double always 2; corner=1
+  const doors = isTallSingle ? 1
+              : isTallDouble ? 2
+              : unit.width >= 600 ? 2 : 1;
+
+  const kickH    = isFloor ? KICK_H_MM * pxPerMm : 0;
+  const fillerH  = (isTall || isUpper) ? FILLER_H_MM * pxPerMm : 0;
+  const topH     = H - kickH;
+  const carcassY = fillerH;
+  const carcassH = topH - fillerH;
+  const countTop = (isBase || isDrawer) ? 38 * pxPerMm : 0;
+  const pad      = Math.max(3, W * 0.045);
+  const topPad   = carcassY + pad + countTop;
+  const bodyH    = topH - topPad - pad;
+  const dw       = (W - pad * 2) / doors;
+  const rot      = unit.rotation || 0;
+
+  return (
+    <svg width={W} height={H} style={{ display:"block", overflow:selected?"visible":"hidden", pointerEvents:"none" }}>
+      <defs>
+        {isWood && (
+          <pattern id={`g${uid}`} patternUnits="userSpaceOnUse" width="8" height="200">
+            <rect width="8" height="200" fill={f.color}/>
+            <line x1="2" y1="0" x2="2" y2="200" stroke={f.color+"66"} strokeWidth="0.7"/>
+            <line x1="5" y1="0" x2="5" y2="200" stroke={f.color+"44"} strokeWidth="1"/>
+          </pattern>
+        )}
+        {isGloss && (
+          <linearGradient id={`gs${uid}`} x1="0" y1="0" x2="0.2" y2="1">
+            <stop offset="0%" stopColor="#fff" stopOpacity="0.22"/>
+            <stop offset="60%" stopColor="#fff" stopOpacity="0"/>
+          </linearGradient>
+        )}
+        {selected && (
+          <filter id={`sel${uid}`} x="-12%" y="-12%" width="124%" height="124%">
+            <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor={C.orange} floodOpacity="1"/>
+          </filter>
+        )}
+      </defs>
+
+      {isCorner ? (
+        <>
+          <polygon points={cornerPoints(W, topH, rot)}
+            fill={isWood ? `url(#g${uid})` : f.color}
+            stroke={selected ? C.orange : "#00000044"}
+            strokeWidth={selected ? 2.5 : 1}
+            filter={selected ? `url(#sel${uid})` : undefined}/>
+          {isGloss && <polygon points={cornerPoints(W, topH, rot)} fill={`url(#gs${uid})`}/>}
+          <rect x={0} y={topH} width={W} height={kickH} fill="#1A1210" rx={1}/>
+          <rect x={4} y={topH+2} width={W-8} height={kickH-4} fill="#222" rx={1}/>
+          <text x={W/2} y={topH/2+4} textAnchor="middle" fontSize={Math.max(9, pxPerMm*28)}
+            fill="rgba(255,255,255,0.4)" fontFamily="sans-serif">{["↖","↗","↘","↙"][rot % 4]}</text>
+          <rect x={W/2-22} y={topH-16} width={44} height={13} rx={3} fill="rgba(0,0,0,0.55)"/>
+          <text x={W/2} y={topH-6} textAnchor="middle" fontSize={Math.max(7, pxPerMm*30)}
+            fill={C.gold} fontFamily="sans-serif">900mm</text>
+        </>
+      ) : (
+        <>
+          {/* Carcass body */}
+          <rect x={0} y={carcassY} width={W} height={carcassH} rx={1.5}
+            fill={isWood ? `url(#g${uid})` : f.color}
+            stroke={selected ? C.orange : "#00000044"}
+            strokeWidth={selected ? 2.5 : 1}
+            filter={selected ? `url(#sel${uid})` : undefined}/>
+          {isGloss && <rect x={0} y={carcassY} width={W} height={carcassH} rx={1.5} fill={`url(#gs${uid})`}/>}
+
+          {(isTall || isUpper) && (<>
+            <rect x={0} y={0} width={W} height={fillerH} fill="#D8D0C4" rx={1}/>
+            <rect x={3} y={2} width={W-6} height={fillerH-4} fill="#CEC0AE" rx={1}/>
+            <line x1={0} x2={W} y1={fillerH} y2={fillerH} stroke="#B0A090" strokeWidth={1.5}/>
+            <text x={W/2} y={fillerH/2+3} textAnchor="middle" fontSize={Math.max(6,pxPerMm*18)} fill="rgba(80,60,40,0.45)" fontFamily="sans-serif">FILLER</text>
+          </>)}
+
+          {/* Countertop on base/drawer — foreignObject so CSS gradients render */}
+          {(isBase || isDrawer) && (() => {
+            const ctBg = ctColour ? countertopBg(ctColour) : "#CEBFAE";
+            return (<>
+              <foreignObject x={0} y={0} width={W} height={countTop}>
+                <div xmlns="http://www.w3.org/1999/xhtml" style={{ width:"100%", height:"100%", background:ctBg, borderRadius:"2px 2px 0 0" }}/>
+              </foreignObject>
+              <rect x={0} y={countTop-3} width={W} height={3} fill="rgba(0,0,0,0.2)"/>
+            </>);
+          })()}
+
+          {/* Kick plate */}
+          {isFloor && (<>
+            <rect x={0} y={topH} width={W} height={kickH} fill="#1A1210" rx={1}/>
+            <rect x={4} y={topH+2} width={W-8} height={kickH-4} fill="#222" rx={1}/>
+          </>)}
+
+          {/* Drawer stacks */}
+          {isDrawer && (() => {
+            const numD = unit.width <= 450 ? 3 : 4;
+            const dH   = bodyH / numD;
+            return Array.from({length:numD}).map((_,i) => (
+              <g key={i}>
+                <rect x={pad+2} y={topPad+i*dH+2} width={W-pad*2-4} height={dH-4}
+                  fill="none" stroke="rgba(0,0,0,0.15)" strokeWidth={1} rx={1}/>
+                {hw?.color && <rect x={W/2-18} y={topPad+i*dH+dH*0.44} width={36} height={4} rx={2} fill={hw.color}/>}
+              </g>
             ));
           })()}
-        </div>
-      </>)}
-    </div>
-  );
-}
 
-
-// --- STEP 6: FLOOR PLAN & CUTTING SPEC ---------------------------------------
-function Step6FloorPlan({placed, carc, ct, door}){
-  const [activeTab, setActiveTab] = useState("plan");   // "plan" | "spec"
-  const [activeUnit, setActiveUnit] = useState(null);   // tid for spec detail
-
-  const carcM = PM.carcass[carc];
-
-  // -- Floor plan SVG ----------------------------------------------------------
-  // Scale: 1mm = PX px
-  const PX      = 0.16;
-  const MARGIN  = 40;   // px left margin for labels
-  const wallLen = placed.length
-    ? Math.max(...placed.filter(p=>cabDef(p.tid).wC).map(p => (p.col + cabDef(p.tid).wC) * 100)) + 400
-    : 6400;
-  const planW   = wallLen * PX + MARGIN + 20;
-  const maxDepth= 750; // floor + wall depth zone in plan
-  const planH   = maxDepth * PX + 80;
-
-  // Group units
-  const floorUnits = placed.filter(p=>{ const c=cabDef(p.tid); return c && ["Floor","Corner","Tall"].includes(c.cat); });
-  const wallUnits  = placed.filter(p=>cabDef(p.tid).cat==="Wall" && PM.cabinets[p.tid]);
-
-  function dimLine(x1,y,x2,label,above=true){
-    const y2 = above ? y-10 : y+10;
-    const yText = above ? y-14 : y+20;
-    return(
-      <g>
-        <line x1={x1} y1={y} x2={x1} y2={y2} stroke="#888" strokeWidth="0.6"/>
-        <line x1={x2} y1={y} x2={x2} y2={y2} stroke="#888" strokeWidth="0.6"/>
-        <line x1={x1} y1={y2} x2={x2} y2={y2} stroke="#888" strokeWidth="0.6"
-          markerStart="url(#arr)" markerEnd="url(#arr)"/>
-        <text x={(x1+x2)/2} y={yText} textAnchor="middle"
-          fontSize="7" fill="#555" fontFamily="monospace">{label}</text>
-      </g>
-    );
-  }
-
-  const FloorPlan = () => {
-    // -- Architectural top-down plan layout -----------------------------------
-    // Reading top -> bottom:
-    //   [structural wall -- hatched]
-    //   [wall units -- 350mm deep, tight against wall, dashed outline]
-    //   [floor/tall units -- 600mm deep, solid fill]
-    //   [door swing arcs -- opening into room]
-    //   [dimension lines]
-    //
-    // All Y coords grow downward from the structural wall at top.
-
-    const wallThickPx = 15;          // structural wall block height in px
-    const wallY       = 18;          // top of structural wall
-    const wallBotY    = wallY + wallThickPx; // bottom of structural wall = back of wall units
-
-    const wallUnitDepthPx  = 350 * PX;  // 350mm
-    const floorUnitDepthPx = 600 * PX;  // 600mm
-
-    // Wall units sit directly below structural wall
-    const wallUnitTopY  = wallBotY;
-    const wallUnitBotY  = wallUnitTopY + wallUnitDepthPx;
-
-    // Floor units sit directly below wall units (share the same wall face)
-    const floorUnitTopY = wallUnitBotY;
-    const floorUnitBotY = floorUnitTopY + floorUnitDepthPx;
-
-    // Total SVG height: wall + wall units + floor units + swing arcs + dim lines + legend
-    const maxSwingR = Math.max(
-      floorUnits.length ? Math.max(...floorUnits.map(p=>(PM.cabinets[p.tid]?.wMm||600)*PX/2)) : 0,
-      0
-    );
-    const svgH = floorUnitBotY + Math.min(maxSwingR, 60) + 30 + 20; // arcs + dim + legend
-
-    return(
-      <svg width={planW} height={svgH} style={{display:"block"}}>
-        <defs>
-          <marker id="arr" markerWidth="5" markerHeight="5" refX="2.5" refY="2.5" orient="auto">
-            <path d="M0,0 L5,2.5 L0,5" fill="none" stroke="#777" strokeWidth="1"/>
-          </marker>
-          <pattern id="hatch" patternUnits="userSpaceOnUse" width="5" height="5" patternTransform="rotate(45)">
-            <line x1="0" y1="0" x2="0" y2="5" stroke="#B0A898" strokeWidth="1.2"/>
-          </pattern>
-        </defs>
-
-        {/* -- Structural wall -- */}
-        <rect x={MARGIN} y={wallY} width={wallLen*PX} height={wallThickPx}
-          fill="url(#hatch)" stroke="#7A7068" strokeWidth="1.2"/>
-        <text x={MARGIN-3} y={wallY+10} textAnchor="end" fontSize="7"
-          fill="#666" fontFamily="monospace" fontWeight="700">WALL</text>
-
-        {/* -- Wall units -- between structural wall and floor units -- */}
-        {wallUnits.map(p=>{
-          const cab = PM.cabinets[p.tid]||{};
-          const wMm = cab.wMm||0;
-          const x   = MARGIN + p.col*100*PX;
-          const pw  = wMm*PX;
-          const ph  = wallUnitDepthPx;
-          return(
-            <g key={p.id}>
-              {/* Hatched fill to distinguish from floor units */}
-              <rect x={x} y={wallUnitTopY} width={pw} height={ph}
-                fill="#EAE4D8" stroke="#8A7A68" strokeWidth="0.8" strokeDasharray="4 2"/>
-              {/* Centre lines */}
-              <line x1={x+pw/2-3} y1={wallUnitTopY+ph/2} x2={x+pw/2+3} y2={wallUnitTopY+ph/2}
-                stroke="#8A7A68" strokeWidth="0.5" opacity="0.6"/>
-              <line x1={x+pw/2} y1={wallUnitTopY+ph/2-3} x2={x+pw/2} y2={wallUnitTopY+ph/2+3}
-                stroke="#8A7A68" strokeWidth="0.5" opacity="0.6"/>
-              <text x={x+pw/2} y={wallUnitTopY+ph/2+3} textAnchor="middle"
-                fontSize={Math.max(6,pw*0.085)} fill="#6A5848" fontFamily="monospace">
-                {wMm}
-              </text>
-            </g>
-          );
-        })}
-
-        {/* Divider line between wall units and floor units */}
-        {(floorUnits.length>0||wallUnits.length>0)&&(
-          <line x1={MARGIN} y1={floorUnitTopY} x2={MARGIN+wallLen*PX} y2={floorUnitTopY}
-            stroke="#9A8878" strokeWidth="0.8" strokeDasharray="6 3"/>
-        )}
-
-        {/* -- Floor / Tall / Corner units -- */}
-        {floorUnits.map(p=>{
-          const cab = PM.cabinets[p.tid]||{};
-          const wMm = cab.wMm||0;
-          const x   = MARGIN + p.col*100*PX;
-          const pw  = wMm*PX;
-          const ph  = floorUnitDepthPx;
-          const frontY = floorUnitTopY + ph; // front face of cabinet (room side)
-          const swingR = pw/2 - 3;
-
-          const fillColor = cab.cat==="Tall" ? "#C8C0A8"
-                          : cab.isDrawer     ? "#C4B8A4"
-                          : "#D4C8B4";
-
-          return(
-            <g key={p.id}>
-              {/* Cabinet footprint */}
-              <rect x={x} y={floorUnitTopY} width={pw} height={ph}
-                fill={fillColor} stroke="#7A6A58" strokeWidth="0.9"/>
-
-              {/* Centre cross */}
-              <line x1={x+pw/2-4} y1={floorUnitTopY+ph/2} x2={x+pw/2+4} y2={floorUnitTopY+ph/2}
-                stroke="#7A6A58" strokeWidth="0.5"/>
-              <line x1={x+pw/2} y1={floorUnitTopY+ph/2-4} x2={x+pw/2} y2={floorUnitTopY+ph/2+4}
-                stroke="#7A6A58" strokeWidth="0.5"/>
-
-              {/* Width label inside unit */}
-              <text x={x+pw/2} y={floorUnitTopY+ph/2+3} textAnchor="middle"
-                fontSize={Math.max(6,pw*0.085)} fill="#4A3828" fontWeight="700" fontFamily="monospace">
-                {wMm}
-              </text>
-
-              {/* Door swing arcs -- architectural "E/3" shape:
-                   Each door hinges at the outer edge, swings 90deg toward centre.
-                   Left door: hinge at x (left wall), swings to frontY+doorW below
-                   Right door: hinge at x+pw (right wall), swings to frontY+doorW below
-                   The centre gap line completes the "E" shape.
-              */}
-              {cab.cat!=="Tall"&&!APPLIANCES[p.tid]&&(pw/2-3)>3&&(()=>{
-                const doorW = pw/2 - 3;   // width of one leaf
-                // Left door: hinge at outer-left (x), door face closed along cabinet front
-                // Closed pos: line from (x, frontY) to (x+doorW, frontY)
-                // Arc: pivot = (x, frontY), radius = doorW, from angle 0 (right) to angle 90 (down)
-                // End point: (x, frontY+doorW)  -- directly below hinge
-                // Right door: hinge at outer-right (x+pw), mirror image
-                return(
-                  <>
-                    {/* Left door closed position */}
-                    <line x1={x} y1={frontY} x2={x+doorW} y2={frontY}
-                      stroke="#A09080" strokeWidth="0.6" opacity="0.8"/>
-                    {/* Left door arc: (x+doorW, frontY) -> (x, frontY+doorW), pivot (x, frontY) */}
-                    <path d={`M${x+doorW},${frontY} A${doorW},${doorW} 0 0,0 ${x},${frontY+doorW}`}
-                      fill="none" stroke="#A09080" strokeWidth="0.5" strokeDasharray="2.5 1.5"/>
-                    {/* Right door closed position */}
-                    <line x1={x+pw-doorW} y1={frontY} x2={x+pw} y2={frontY}
-                      stroke="#A09080" strokeWidth="0.6" opacity="0.8"/>
-                    {/* Right door arc: (x+pw-doorW, frontY) -> (x+pw, frontY+doorW), pivot (x+pw, frontY) */}
-                    <path d={`M${x+pw-doorW},${frontY} A${doorW},${doorW} 0 0,1 ${x+pw},${frontY+doorW}`}
-                      fill="none" stroke="#A09080" strokeWidth="0.5" strokeDasharray="2.5 1.5"/>
-                    {/* Centre spine line -- completes the "E" shape */}
-                    <line x1={x} y1={frontY} x2={x} y2={frontY+doorW}
-                      stroke="#A09080" strokeWidth="0.6" opacity="0.6"/>
-                    <line x1={x+pw} y1={frontY} x2={x+pw} y2={frontY+doorW}
-                      stroke="#A09080" strokeWidth="0.6" opacity="0.6"/>
-                  </>
-                );
-              })()}
-
-              {/* Individual dim line below swing */}
-              {dimLine(x, frontY+(cab.cat!=="Tall"&&swingR>3?swingR+6:6), x+pw, `${wMm}mm`)}
-            </g>
-          );
-        })}
-
-        {/* -- Depth labels on left axis -- */}
-        {wallUnits.length>0&&(
-          <text x={MARGIN-5} y={wallUnitTopY+wallUnitDepthPx/2+3} textAnchor="end"
-            fontSize="6" fill="#888" fontFamily="monospace"
-            transform={`rotate(-90,${MARGIN-16},${wallUnitTopY+wallUnitDepthPx/2})`}>
-            350D WALL
-          </text>
-        )}
-        <text x={MARGIN-5} y={floorUnitTopY+floorUnitDepthPx/2+3} textAnchor="end"
-          fontSize="6" fill="#888" fontFamily="monospace"
-          transform={`rotate(-90,${MARGIN-16},${floorUnitTopY+floorUnitDepthPx/2})`}>
-          600D FLOOR
-        </text>
-
-        {/* -- Total run dimension at top -- */}
-        {floorUnits.length>0&&(()=>{
-          const allUnits = [...floorUnits, ...wallUnits];
-          if (!allUnits.length) return null;
-          const leftX  = MARGIN + Math.min(...allUnits.map(p=>p.col))*100*PX;
-          const rightX = MARGIN + Math.max(...allUnits.map(p=>(p.col+(PM.cabinets[p.tid]?.wC||0))*100))*PX;
-          const totMm  = Math.max(...allUnits.map(p=>(p.col+(PM.cabinets[p.tid]?.wC||0))*100))
-                       - Math.min(...allUnits.map(p=>p.col*100));
-          return dimLine(leftX, wallY-2, rightX, `TOTAL RUN: ${totMm}mm`, true);
-        })()}
-
-        {/* -- Legend -- */}
-        <g transform={`translate(${MARGIN},${svgH-14})`}>
-          {[
-            {fill:"#D4C8B4",stroke:"#7A6A58",dash:"",      label:"Floor / Corner / Tall"},
-            {fill:"#EAE4D8",stroke:"#8A7A68",dash:"4 2",   label:"Wall unit (above bench)"},
-            {fill:"none",   stroke:"#A09080",dash:"2.5 1.5",label:"Door swing arc"},
-          ].map((l,i)=>(
-            <g key={i} transform={`translate(${i*110},0)`}>
-              <rect x={0} y={0} width={9} height={9} fill={l.fill} stroke={l.stroke}
-                strokeWidth="0.8" strokeDasharray={l.dash}/>
-              <text x={12} y={8} fontSize="6.5" fill="#5A4A38" fontFamily="sans-serif">{l.label}</text>
-            </g>
-          ))}
-        </g>
-      </svg>
-    );
-  };
-
-  // -- Cutting spec -------------------------------------------------------------
-  const specs = placed.filter(p => PM.cabinets[p.tid]).map(p => cuttingSpec(p.tid, PM.cabinets[p.tid].label));
-
-  // Sheet usage estimate: total panel area / sheet area, add 20% waste
-  const totalPanelArea = specs.reduce((sum,s)=>
-    sum + s.panels.reduce((ps,pan)=> ps + (pan.l * pan.w * pan.qty), 0), 0);
-  const sheetArea   = SHEET_W * SHEET_H;
-  const sheetsNeeded = Math.ceil((totalPanelArea / sheetArea) * 1.2);
-
-  // Group unique panels across all units for summary
-  const panelSummary = {};
-  specs.forEach(s=>{
-    s.panels.forEach(pan=>{
-      const key = `${pan.part}|${pan.l}x${pan.w}`;
-      if(!panelSummary[key]) panelSummary[key]={part:pan.part,l:pan.l,w:pan.w,qty:0,note:pan.note};
-      panelSummary[key].qty += pan.qty;
-    });
-  });
-
-  return(
-    <div className="flex flex-col gap-4">
-      {/* Carpenter badge */}
-      <div className="rounded-xl px-4 py-2.5 flex items-center gap-2"
-        style={{background:B.dark}}>
-        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{background:B.orange}}/>
-        <p className="text-[10px] font-black tracking-widest uppercase" style={{color:B.gold}}>
-          Carpenter's Working Document
-        </p>
-        <span className="ml-auto text-[9px] font-bold" style={{color:"#6A5A50"}}>
-          {carcM?.label}
-        </span>
-      </div>
-
-      {/* Tab toggle */}
-      <div className="flex rounded-xl overflow-hidden" style={{border:`1.5px solid #E0D8CC`}}>
-        {[{id:"plan",label:"Floor Plan"},{id:"spec",label:"Cutting Spec"}].map(t=>(
-          <button key={t.id} onClick={()=>setActiveTab(t.id)}
-            className="flex-1 py-2.5 text-xs font-black tracking-widest uppercase transition-all"
-            style={{background:activeTab===t.id?B.dark:B.white, color:activeTab===t.id?B.white:"#9A8878"}}>
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* -- FLOOR PLAN TAB ------------------------------------------------------ */}
-      {activeTab==="plan"&&(
-        <div className="flex flex-col gap-3">
-          <p className="text-[9px] font-bold tracking-widest uppercase" style={{color:"#9A8878"}}>
-            Top-down plan view  x  all dimensions in mm  x  depths to scale
-          </p>
-          <div className="overflow-x-auto rounded-xl" style={{border:"1.5px solid #C0B8AC",background:B.white}}>
-            <div style={{padding:"12px 8px 8px 8px"}}>
-              <FloorPlan/>
-            </div>
-          </div>
-
-          {/* Quick plan stats */}
-          <div className="rounded-xl overflow-hidden" style={{border:"1.5px solid #E0D8CC"}}>
-            <div className="grid grid-cols-2 divide-x" style={{borderColor:"#E0D8CC"}}>
-              {[
-                {label:"Floor Units",val:`${floorUnits.length} units`,sub:`${(floorUnits.reduce((s,p)=>s+cabDef(p.tid).wMm,0)/1000).toFixed(2)}m run`},
-                {label:"Wall Units", val:`${wallUnits.length} units`, sub:`${(wallUnits.reduce((s,p)=>s+cabDef(p.tid).wMm,0)/1000).toFixed(2)}m run`},
-              ].map((m,i)=>(
-                <div key={m.label} className="px-4 py-3" style={{background:i===0?B.white:B.parchment}}>
-                  <p className="text-[9px] font-bold tracking-widest uppercase" style={{color:"#9A8878"}}>{m.label}</p>
-                  <p className="text-sm font-black" style={{color:B.dark}}>{m.val}</p>
-                  <p className="text-[10px]" style={{color:B.orange}}>{m.sub}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-xl px-4 py-2.5 flex gap-2 items-start"
-            style={{background:"#FFF8EC",border:`1.5px solid ${B.gold}`}}>
-            <Info size={12} color={B.gold} className="mt-0.5 flex-shrink-0"/>
-            <p className="text-[10px]" style={{color:"#9A6A00"}}>
-              Door swing arcs shown for reference. Dashed boxes = wall-hung units shown at floor position for layout reference. All dimensions are nominal -- verify on site.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* -- CUTTING SPEC TAB ---------------------------------------------------- */}
-      {activeTab==="spec"&&(
-        <div className="flex flex-col gap-4">
-
-          {/* Sheet material summary */}
-          <div className="rounded-xl overflow-hidden" style={{border:"1.5px solid #E0D8CC"}}>
-            <div className="px-4 py-2" style={{background:B.dark}}>
-              <p className="text-[9px] font-black tracking-widest uppercase" style={{color:B.gold}}>Material Summary</p>
-            </div>
-            <div className="grid grid-cols-3 divide-x" style={{borderColor:"#E0D8CC"}}>
-              {[
-                {label:"Board Thickness", val:`${PANEL_T}mm`, sub:"carcass panels"},
-                {label:"Sheet Size",      val:`${SHEET_W}x${SHEET_H}`, sub:"mm standard"},
-                {label:"Est. Sheets",     val:sheetsNeeded,   sub:"incl. 20% waste"},
-              ].map((m,i)=>(
-                <div key={m.label} className="text-center py-3 px-1"
-                  style={{background:i===1?B.parchment:B.white}}>
-                  <p className="text-lg font-black leading-none" style={{color:i===2?B.orange:B.dark}}>{m.val}</p>
-                  <p className="text-[8px] font-bold tracking-widest uppercase mt-0.5" style={{color:"#9A8878"}}>{m.label}</p>
-                  <p className="text-[9px]" style={{color:"#B0A090"}}>{m.sub}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Unit selector */}
-          <div>
-            <p className="text-[9px] font-bold tracking-widest uppercase mb-2" style={{color:"#9A8878"}}>
-              Select unit for panel sizes
-            </p>
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              <button onClick={()=>setActiveUnit(null)}
-                className="flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-black transition-all"
-                style={{background:activeUnit===null?B.dark:B.parchment,color:activeUnit===null?B.white:B.dark,
-                  border:`1.5px solid ${activeUnit===null?B.orange:"#D0C8BC"}`}}>
-                All Units
-              </button>
-              {[...new Set(placed.filter(p=>PM.cabinets[p.tid]).map(p=>p.tid))].map(tid=>{
-                const cab=cabDef(tid);
-                return(
-                  <button key={tid} onClick={()=>setActiveUnit(tid===activeUnit?null:tid)}
-                    className="flex-shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-black transition-all"
-                    style={{background:activeUnit===tid?B.dark:B.parchment,color:activeUnit===tid?B.white:B.dark,
-                      border:`1.5px solid ${activeUnit===tid?B.orange:"#D0C8BC"}`}}>
-                    {cab.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Panel table */}
-          {(()=>{
-            const filteredSpecs = activeUnit
-              ? specs.filter(s=>s.tid===activeUnit)
-              : specs.filter((s,i,arr)=>arr.findIndex(x=>x.tid===s.tid)===i); // unique tids
-            return filteredSpecs.map(spec=>{
-              const placed_count = placed.filter(p=>p.tid===spec.tid).length;
-              return(
-                <div key={spec.tid} className="rounded-xl overflow-hidden"
-                  style={{border:"1.5px solid #E0D8CC"}}>
-                  {/* Unit header */}
-                  <div className="px-4 py-2.5 flex items-center justify-between"
-                    style={{background:B.dark}}>
-                    <div>
-                      <p className="text-xs font-black" style={{color:B.white}}>{spec.label}</p>
-                      <p className="text-[9px]" style={{color:"#9A8878"}}>
-                        {spec.w}mm wide x {spec.d}mm deep  x  {placed_count} in layout
-                      </p>
-                    </div>
-                    <span className="text-[9px] font-bold px-2 py-1 rounded" style={{background:"#3A2820",color:B.gold}}>
-                      x{placed_count}
-                    </span>
-                  </div>
-                  {/* Column headers */}
-                  <div className="grid px-4 py-1.5"
-                    style={{gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr",background:B.parchment,borderBottom:"1px solid #E0D8CC"}}>
-                    {["Part","Qty","L (mm)","W (mm)","Note"].map(h=>(
-                      <p key={h} className="text-[8px] font-black tracking-widest uppercase" style={{color:"#9A8878"}}>{h}</p>
-                    ))}
-                  </div>
-                  {/* Panel rows */}
-                  {spec.panels.map((pan,i)=>(
-                    <div key={i} className="grid px-4 py-2"
-                      style={{gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr",
-                        borderBottom:i<spec.panels.length-1?"1px solid #E0D8CC":"none",
-                        background:i%2===0?B.white:B.parchment}}>
-                      <p className="text-[10px] font-bold" style={{color:B.dark}}>{pan.part}</p>
-                      <p className="text-[10px] font-black" style={{color:B.orange}}>{pan.qty}</p>
-                      <p className="text-[10px]" style={{color:B.dark}}>{pan.l}</p>
-                      <p className="text-[10px]" style={{color:B.dark}}>{pan.w}</p>
-                      <p className="text-[10px]" style={{color:"#9A8878"}}>{pan.note}</p>
-                    </div>
-                  ))}
-                  {/* Multiplied totals footer */}
-                  <div className="px-4 py-2 flex items-center justify-between"
-                    style={{background:"#F8F0E8",borderTop:"1px solid #E0D8CC"}}>
-                    <p className="text-[9px]" style={{color:"#9A8878"}}>
-                      {placed_count} unit{placed_count>1?"s":""} x {spec.panels.reduce((s,p)=>s+p.qty,0)} panels each
-                    </p>
-                    <p className="text-[9px] font-black" style={{color:B.dark}}>
-                      = {placed_count * spec.panels.reduce((s,p)=>s+p.qty,0)} total pieces
-                    </p>
-                  </div>
-                </div>
-              );
-            });
+          {/* Door panels — tall-double gets two stacked doors with a mid-rail */}
+          {!isDrawer && (() => {
+            if (isTallDouble) {
+              // Two stacked doors separated by a mid-rail at 50% body height
+              const halfH = bodyH / 2;
+              const railY  = topPad + halfH;
+              return (<>
+                {/* Top door */}
+                <rect x={pad+3} y={topPad+3} width={W-pad*2-6} height={halfH-6}
+                  fill="none" stroke="rgba(0,0,0,0.13)" strokeWidth={1} rx={1}/>
+                {hw?.color && <rect x={W/2-10} y={topPad+halfH*0.5} width={20} height={4} rx={2} fill={hw.color}/>}
+                {/* Mid rail */}
+                <rect x={0} y={railY-2} width={W} height={4} fill="rgba(0,0,0,0.25)"/>
+                {/* Bottom door */}
+                <rect x={pad+3} y={railY+3} width={W-pad*2-6} height={halfH-6}
+                  fill="none" stroke="rgba(0,0,0,0.13)" strokeWidth={1} rx={1}/>
+                {hw?.color && <rect x={W/2-10} y={railY+halfH*0.5} width={20} height={4} rx={2} fill={hw.color}/>}
+                {/* Double-door label badge */}
+                <rect x={W/2-14} y={topH-28} width={28} height={10} rx={2} fill={C.orange+"44"}/>
+                <text x={W/2} y={topH-20} textAnchor="middle" fontSize={Math.max(6, pxPerMm*18)}
+                  fill={C.gold} fontFamily="sans-serif">2-door</text>
+              </>);
+            }
+            // Single-door or standard multi-door (base/upper)
+            return Array.from({length:doors}).map((_,i) => (
+              <g key={i}>
+                <rect x={pad+i*dw+3} y={topPad+3} width={dw-6} height={bodyH-6}
+                  fill="none" stroke="rgba(0,0,0,0.13)" strokeWidth={1} rx={1}/>
+                {hw?.color && <rect x={pad+i*dw+dw/2-10} y={topPad+bodyH*0.5}
+                  width={20} height={4} rx={2} fill={hw.color}/>}
+              </g>
+            ));
           })()}
 
-          {/* Consolidated cut list */}
-          <div className="rounded-xl overflow-hidden" style={{border:"1.5px solid #E0D8CC"}}>
-            <div className="px-4 py-2" style={{background:B.parchment}}>
-              <p className="text-[9px] font-black tracking-widest uppercase" style={{color:B.dark}}>
-                Consolidated Cut List
-              </p>
-              <p className="text-[9px]" style={{color:"#9A8878"}}>All panels grouped by size</p>
-            </div>
-            {/* Column headers */}
-            <div className="grid px-4 py-1.5"
-              style={{gridTemplateColumns:"2fr 1fr 1fr 1fr",background:"#F5F0E8",borderBottom:"1px solid #E0D8CC"}}>
-              {["Part","Total Qty","L (mm)","W (mm)"].map(h=>(
-                <p key={h} className="text-[8px] font-black tracking-widest uppercase" style={{color:"#9A8878"}}>{h}</p>
-              ))}
-            </div>
-            {Object.values(panelSummary).sort((a,b)=>b.qty-a.qty).map((pan,i,arr)=>(
-              <div key={i} className="grid px-4 py-2"
-                style={{gridTemplateColumns:"2fr 1fr 1fr 1fr",
-                  borderBottom:i<arr.length-1?"1px solid #E0D8CC":"none",
-                  background:i%2===0?B.white:B.parchment}}>
-                <p className="text-[10px] font-bold" style={{color:B.dark}}>{pan.part}</p>
-                <p className="text-[10px] font-black" style={{color:B.orange}}>{pan.qty}</p>
-                <p className="text-[10px]" style={{color:B.dark}}>{pan.l}</p>
-                <p className="text-[10px]" style={{color:B.dark}}>{pan.w}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="rounded-xl px-4 py-2.5 flex gap-2 items-start"
-            style={{background:"#FFF8EC",border:`1.5px solid ${B.gold}`}}>
-            <Info size={12} color={B.gold} className="mt-0.5 flex-shrink-0"/>
-            <p className="text-[10px]" style={{color:"#9A6A00"}}>
-              Panel sizes are nominal at {PANEL_T}mm board thickness. Door/drawer faces are finished sizes with 2mm gap per edge. Verify all dimensions on site before cutting. Back panels at 12mm.
-            </p>
-          </div>
-        </div>
+          {/* Dimension chip */}
+          <rect x={W/2-22} y={topH-16} width={44} height={13} rx={3} fill="rgba(0,0,0,0.55)"/>
+          <text x={W/2} y={topH-6} textAnchor="middle" fontSize={Math.max(7, pxPerMm*30)}
+            fill={C.gold} fontFamily="sans-serif">{unit.width}mm</text>
+        </>
       )}
-    </div>
+    </svg>
   );
 }
 
-// --- APP ----------------------------------------------------------------------
-export default function App(){
-  const [step,    setStep]    = useState(1);
-  const [placed,  setPlaced]  = useState([]);
-  const [selType, setSelType] = useState(null);
-  const [carc,    setCarc]    = useState("melamine");
-  const [ct,      setCt]      = useState("formica_white");
-  const [door,    setDoor]    = useState("supawood_white");
-  const [handle,  setHandle]  = useState("black_bar");
-  const [cs,      setCs]      = useState(13);
-  const [gridCols, setGridCols] = useState(60); // 6000mm default
+// ─── HWH Logo SVG ─────────────────────────────────────────────────────────────
+function HWHLogo({ size = 36 }) {
+  const r = size / 2;
+  const circles = [
+    { bg:C.orange, diamond:C.gold,  dot:C.black },
+    { bg:C.black,  diamond:C.white, dot:C.orange },
+    { bg:C.gold,   diamond:C.orange,dot:C.black },
+  ];
+  const totalW = size*3 + 4;
+  return (
+    <svg width={totalW} height={size} viewBox={`0 0 ${totalW} ${size}`}>
+      {circles.map((col, i) => {
+        const cx = r + i*(size+2), cy = r, d = r*0.58;
+        return (
+          <g key={i}>
+            <circle cx={cx} cy={cy} r={r} fill={col.bg}/>
+            <polygon points={`${cx},${cy-d} ${cx+d},${cy} ${cx},${cy+d} ${cx-d},${cy}`} fill={col.diamond}/>
+            <circle cx={cx} cy={cy} r={r*0.2} fill={col.dot}/>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
 
-  useEffect(()=>{
-    const upd = () => setCs(window.innerWidth<480?9:window.innerWidth<768?11:13);
-    upd();
-    window.addEventListener("resize",upd);
-    return()=>window.removeEventListener("resize",upd);
-  },[]);
+// ─── Left Panel: smart panel switches between palette & finish editor ──────────
+function LeftPanel({ phase, units, selected, setSelected, setUnits, onClearAll, onPaletteDragStart, onTapAdd, totalFloor, onNext }) {
+  const { w: lpW } = useWindowSize();
+  const isPhone = lpW < 640;
+  const selUnit   = units.find(u => u.id === selected);
+  const updateSel = patch => setUnits(p => p.map(u => u.id===selected ? {...u,...patch} : u));
+  const applyAll  = patch => setUnits(p => p.map(u => ({...u,...patch})));
+  const applyType = patch => setUnits(p => p.map(u => u.type===selUnit?.type ? {...u,...patch} : u));
+  const removeSel = ()    => { setUnits(p => p.filter(u => u.id!==selected)); setSelected(null); };
 
-  const q = calcQ(placed,carc,ct,door,handle);
+  // Show finish editor if something is selected AND we're in finish phase
+  const showFinishes = phase === "finish" && selUnit;
+  // Show unit list in finish phase but nothing selected
+  const showUnitList = phase === "finish" && !selUnit;
 
-  return(
-    <div className="flex flex-col min-h-screen" style={{background:B.cream,fontFamily:"'DM Sans','Helvetica Neue',sans-serif"}}>
-      {/* Header */}
-      <div className="flex-shrink-0 px-4 pt-4 pb-3" style={{background:B.dark,borderBottom:`3px solid ${B.orange}`}}>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Logo size={19}/>
-            <div>
-              <p className="text-xs font-black tracking-widest uppercase leading-none" style={{color:B.white}}>HWH</p>
-              <p className="text-[8px] tracking-widest" style={{color:B.gold}}>DESIGNS</p>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-[8px] font-bold tracking-widest uppercase" style={{color:"#9A8878"}}>Built-In Configurator</p>
-            {placed.length>0&&step===5&&<p className="text-xs font-black" style={{color:B.gold}}>{fmt(q.total)}</p>}
-          </div>
-        </div>
-        <div className="flex items-center justify-center">
-          {STEPS.map((s,i)=>{
-            const done=step>i+1, active=step===i+1;
-            return(
-              <div key={s} className="flex items-center">
-                <div className="flex flex-col items-center gap-0.5">
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black transition-all"
-                    style={{background:done?B.orange:active?B.white:"transparent",border:`2px solid ${done?B.orange:active?B.white:"#6A5A50"}`,color:done?B.white:active?B.dark:"#6A5A50"}}>
-                    {done?<Check size={12}/>:`0${i+1}`}
-                  </div>
-                  <span className="text-[8px] font-bold tracking-widest uppercase" style={{color:active?B.gold:done?"#C4B8A8":"#6A5A50"}}>{s}</span>
-                </div>
-                {i<5&&<div className="w-5 h-px mx-1 mb-3" style={{background:step>i+1?B.orange:"#4A3A30"}}/>}
-              </div>
-            );
-          })}
-        </div>
+  return (
+    <aside style={{ width:220, background:C.panel, display:"flex", flexDirection:"column", height:"100%", overflow:"hidden" }}>
+
+      {/* Panel header */}
+      <div style={{ padding:"10px 14px", fontSize:8, letterSpacing:3, color:C.orange, textTransform:"uppercase", borderBottom:`1px solid ${C.border}`, background:"#EDE6DC", flexShrink:0 }}>
+        {showFinishes
+          ? (() => {
+              const ct = CARCASS_TYPES.find(c=>c.type===selUnit.type&&c.width===selUnit.width);
+              const isDrawer = selUnit.type === "drawer";
+              return (
+                <span>
+                  {isDrawer ? "⇒ " : "⬡ "}
+                  {ct?.label || selUnit.type} · {selUnit.width}mm
+                  <span style={{ color:C.sub, marginLeft:6, fontSize:7 }}>
+                    {isDrawer ? `${drawerCount(selUnit)} drawers` : `${hingeCount(selUnit).total} hinges`}
+                  </span>
+                </span>
+              );
+            })()
+          : showUnitList ? "③ Tap a unit below to edit"
+          : "① Add Cabinets"}
       </div>
 
-      {/* Body */}
-      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-32">
-        <AnimatePresence mode="wait">
-          <motion.div key={step} initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-10}} transition={{duration:0.2}}>
-            <div className="mb-4">
-              <p className="text-[10px] font-bold tracking-widest uppercase" style={{color:B.orange}}>Step {step} of 6</p>
-              <p className="text-xl font-black" style={{color:B.dark}}>
-                {["Design Your Layout","Core Materials","Finishes & Ironmongery","Layout Preview","Your Estimate","Floor Plan & Cutting Spec"][step-1]}
-              </p>
-              {step>=2&&step<5&&placed.length>0&&(
-                <div className="mt-2 rounded-xl overflow-hidden" style={{background:B.dark}}>
-                  <div className="flex items-center gap-2 px-3 py-1.5" style={{borderBottom:"1px solid #3A2820"}}>
-                    <div className="w-4 h-4 rounded flex-shrink-0" style={{background:PM.doors[door]?.color,border:"1px solid rgba(255,255,255,0.2)"}}/>
-                    <div className="w-4 h-4 rounded flex-shrink-0" style={{background:PM.countertop[ct]?.color,border:"1px solid rgba(255,255,255,0.2)"}}/>
-                    <p className="text-[10px] flex-1" style={{color:"#C4B8A8"}}>{placed.length} units  x  {PM.carcass[carc]?.label}</p>
+      <div style={{ flex:1, overflowY:"auto", minHeight:0 }}>
 
+        {/* ── PALETTE (layout phase) ── */}
+        {phase === "layout" && (
+          <>
+            {[
+              { label:"Base Units",          types:["base"],       floor:true },
+              { label:"Drawer Units",        types:["drawer"],     floor:true },
+              { label:"Wall Cabinets",       types:["upper"]       },
+              { label:"Tall — Single Door",  types:["tall-single"],floor:true },
+              { label:"Tall — Double Door",  types:["tall-double"],floor:true },
+              { label:"Corner Units",        types:["corner"],     floor:true },
+              { label:"Appliances",          types:["appliance"],  appliance:true },
+            ].map(group => {
+              const isAppl = !!group.appliance;
+              const items = isAppl ? APPLIANCE_TYPES : CARCASS_TYPES.filter(c => group.types.includes(c.type));
+              const isFloorGroup = !!group.floor;
+              return (
+                <div key={group.label}>
+                  <div style={{ padding:"8px 12px 4px", fontSize:7, letterSpacing:2, color:C.text, textTransform:"uppercase", borderBottom:`1px solid ${C.border}22` }}>
+                    {group.label}
+                    {isFloorGroup && <span style={{ color:C.orange+"66", marginLeft:4 }}>+kick</span>}
+                    {isAppl && <span style={{ color:"#6090A0", marginLeft:6, fontStyle:"italic" }}>visual only</span>}
                   </div>
-                  <div className="grid grid-cols-3 divide-x" style={{borderColor:"#3A2820"}}>
-                    {[
-                      {label:"Floor Run",  val:(placed.filter(p=>["Floor","Corner","Tall"].includes(cabDef(p.tid).cat)).reduce((s,p)=>s+cabDef(p.tid).wMm,0)/1000).toFixed(2)+"m"},
-                      {label:"Wall Run",   val:(placed.filter(p=>cabDef(p.tid).cat==="Wall").reduce((s,p)=>s+cabDef(p.tid).wMm,0)/1000).toFixed(2)+"m"},
-                      {label:"Countertop", val:(placed.filter(p=>["Floor","Corner"].includes(cabDef(p.tid).cat)).reduce((s,p)=>s+cabDef(p.tid).wMm,0)/1000).toFixed(2)+"m"},
-                    ].map(m=>(
-                      <div key={m.label} className="text-center py-1.5" style={{borderRight:"1px solid #3A2820"}}>
-                        <p className="text-sm font-black leading-none" style={{color:B.white}}>{m.val}</p>
-                        <p className="text-[8px] font-bold tracking-widest uppercase" style={{color:"#6A5A50"}}>{m.label}</p>
+                  {items.map(c => (
+                    <div key={c.id} draggable onDragStart={e=>onPaletteDragStart(e,c)}
+                      style={{ margin:"3px 8px", padding:"8px 10px", background:c.bg, border:`1px solid ${C.border}`, borderRadius:5, cursor:"grab", display:"flex", alignItems:"center", gap:10, userSelect:"none", transition:"border-color 0.1s, transform 0.1s" }}
+                      onMouseEnter={e=>{e.currentTarget.style.borderColor=C.orange;e.currentTarget.style.transform="translateX(2px)";}}
+                      onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.transform="none";}}
+                    >
+                      <span style={{ fontSize:16, color:C.gold, opacity:0.8, flexShrink:0 }}>{c.icon}</span>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:10, color:"rgba(255,255,255,0.72)" }}>{c.desc}</div>
+                      </div>
+                      {onTapAdd
+                        ? <button onClick={()=>onTapAdd(c)} style={{ background:C.orange, border:"none", borderRadius:4, color:C.white, width:26, height:26, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>＋</button>
+                        : <span style={{ fontSize:8, color:C.orange+"99" }}>drag</span>
+                      }
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+            {units.length>0 && (
+              <div style={{ margin:"12px 8px 0", paddingTop:10, borderTop:`1px solid ${C.border}` }}>
+                <div style={{ fontSize:10, color:C.sub }}><span style={{color:C.orange, fontWeight:"bold"}}>{units.length}</span> unit{units.length!==1?"s":""} placed</div>
+                <div style={{ fontSize:10, color:C.sub, marginTop:3 }}>Floor run: <span style={{color:C.gold}}>{totalFloor}mm</span></div>
+                <button onClick={onClearAll} style={{ ...sBtn("transparent","#C55"), marginTop:8, padding:"5px 8px", fontSize:9, width:"100%" }}>Clear All</button>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── UNIT LIST (finish phase, nothing selected) ── */}
+        {showUnitList && (
+          <>
+            <div style={{ padding:"10px 12px 4px", fontSize:10, color:C.sub }}>
+              Select a cabinet to edit its finish:
+            </div>
+            {units.map(u => {
+              const f  = getFinish(u.finish);
+              const ct = CARCASS_TYPES.find(c => c.type===u.type && c.width===u.width);
+              const isDrawer = u.type === "drawer";
+              const hc = hingeCount(u);
+              const dc = drawerCount(u);
+              return (
+                <button key={u.id} onClick={()=>setSelected(u.id)} style={{
+                  width:"100%", padding:"9px 10px", border:"none",
+                  borderLeft:`3px solid transparent`,
+                  background:"transparent", color:"#9A8878",
+                  textAlign:"left", cursor:"pointer", display:"flex", alignItems:"center", gap:9,
+                }}>
+                  <div style={{ width:20, height:20, borderRadius:3, flexShrink:0, border:`1px solid ${C.border}`, background:finishBg(u.finish) }}/>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:10, color:C.white }}>{ct?.label || u.type} · {u.width}mm</div>
+                    <div style={{ fontSize:8, color:C.sub, marginTop:1 }}>
+                      {isDrawer
+                        ? `${dc} drawers · ${RUNNERS.find(r=>r.id===(u.runner||DEFAULT_RUNNER))?.label}`
+                        : `${hc.total} hinges · ${HINGES.find(h=>h.id===(u.hinge||DEFAULT_HINGE))?.label}`
+                      }
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </>
+        )}
+
+        {/* ── FINISH EDITOR (finish phase, unit selected) ── */}
+        {showFinishes && (
+          <div style={{ padding:"10px 12px" }}>
+
+            {/* Unit switcher strip — tap to jump between units */}
+            {units.length > 1 && (
+              <div style={{ marginBottom:10, display:"flex", gap:4, overflowX:"auto", paddingBottom:2 }}>
+                {units.map(u => {
+                  const ct       = CARCASS_TYPES.find(c=>c.type===u.type&&c.width===u.width);
+                  const isDrawer = u.type === "drawer";
+                  const isSel    = selected === u.id;
+                  return (
+                    <button key={u.id} onClick={()=>setSelected(u.id)} title={`${ct?.label} ${u.width}mm`} style={{
+                      flexShrink:0, padding:"4px 8px", borderRadius:12, cursor:"pointer",
+                      border: isSel ? `1.5px solid ${C.orange}` : `1px solid ${C.border}`,
+                      background: isSel ? C.orange+"22" : "rgba(255,255,255,0.03)",
+                      color: isSel ? C.white : "#555",
+                      fontSize:9, fontFamily:"inherit", whiteSpace:"nowrap",
+                      display:"flex", alignItems:"center", gap:4,
+                    }}>
+                      <div style={{ width:8, height:8, borderRadius:1, background:finishBg(u.finish), flexShrink:0 }}/>
+                      {u.width}
+                      <span style={{ fontSize:7, color: isSel ? C.gold : "#444" }}>{isDrawer?"⇒":"⬡"}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Panel sub-header showing unit type clearly */}
+            <div style={{ marginBottom:12, padding:"8px 10px", background:"rgba(0,0,0,0.3)", borderRadius:5, border:`1px solid ${C.border}33` }}>
+              <div style={{ fontSize:9, color:C.orange, letterSpacing:1.5, textTransform:"uppercase" }}>
+                {CARCASS_TYPES.find(c=>c.type===selUnit.type&&c.width===selUnit.width)?.label || selUnit.type}
+              </div>
+              <div style={{ fontSize:8, color:C.sub, marginTop:2 }}>
+                {selUnit.width}mm
+                {selUnit.type==="drawer" ? ` · ${drawerCount(selUnit)} drawers · Runners ↓` : ` · ${hingeCount(selUnit).total} hinges · Hinges ↓`}
+              </div>
+            </div>
+
+            {/* Corner rotation */}
+            {selUnit.type === "corner" && (
+              <div style={{ marginBottom:14 }}>
+                <div style={{ fontSize:8, letterSpacing:2, color:C.sub, textTransform:"uppercase", marginBottom:8 }}>Rotation</div>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:4 }}>
+                  {CORNER_ROTATIONS.map((label, i) => (
+                    <button key={i} onClick={()=>updateSel({rotation:i})} style={{
+                      padding:"6px 4px", borderRadius:4, cursor:"pointer", fontSize:10,
+                      border:(selUnit.rotation||0)===i?`1.5px solid ${C.orange}`:`1px solid ${C.border}`,
+                      background:(selUnit.rotation||0)===i?C.orange+"22":"rgba(255,255,255,0.02)",
+                      color:(selUnit.rotation||0)===i?C.white:"#666",
+                      fontFamily:"inherit", textAlign:"center",
+                    }}>{label}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── DRAWERS: Runners first, then handle, then finish ── */}
+            {selUnit.type === "drawer" && (() => {
+              const dc = drawerCount(selUnit);
+              return (<>
+                {/* Runners — top of drawer editor */}
+                <div style={{ marginBottom:14 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:8 }}>
+                    <div style={{ fontSize:8, letterSpacing:2, color:C.orange, textTransform:"uppercase" }}>Drawer Runners</div>
+                    <div style={{ fontSize:9, color:C.gold, fontWeight:"bold" }}>{dc} pair{dc!==1?"s":""}</div>
+                  </div>
+                  {RUNNERS.map(r => {
+                    const isSel = (selUnit.runner || DEFAULT_RUNNER) === r.id;
+                    return (
+                      <button key={r.id} onClick={()=>updateSel({runner:r.id})} style={{
+                        width:"100%", marginBottom:6, padding:"10px 12px", borderRadius:5, cursor:"pointer",
+                        border: isSel ? `2px solid ${C.orange}` : `1px solid ${C.border}`,
+                        background: isSel ? C.orange+"22" : "rgba(255,255,255,0.02)",
+                        textAlign:"left", fontFamily:"inherit", transition:"all 0.12s",
+                        boxShadow: isSel ? `0 0 0 1px ${C.orange}44` : "none",
+                      }}>
+                        <div style={{ fontSize:11, color: isSel ? C.white : "#AAA", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                          <span style={{ fontWeight: isSel ? "bold" : "normal" }}>{r.label}</span>
+                          <span style={{ fontSize:9, color: isSel ? C.gold : "#555" }}>×{dc} pairs</span>
+                        </div>
+                        <div style={{ fontSize:9, color: isSel ? C.gold : "#555", marginTop:3 }}>{r.subtitle}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Handle */}
+                <div style={{ marginBottom:12, paddingTop:10, borderTop:`1px solid ${C.border}33` }}>
+                  <div style={{ fontSize:8, letterSpacing:2, color:C.sub, textTransform:"uppercase", marginBottom:7 }}>Handle / Pull</div>
+                  {HARDWARE.map(hw=>(
+                    <button key={hw.id} onClick={()=>updateSel({hardware:hw.id})} style={{
+                      width:"100%", marginBottom:4, padding:"7px 8px", borderRadius:4, cursor:"pointer",
+                      border:selUnit.hardware===hw.id?`1px solid ${C.orange}`:`1px solid ${C.border}`,
+                      background:selUnit.hardware===hw.id?C.orange+"18":"rgba(255,255,255,0.02)",
+                      color:selUnit.hardware===hw.id?C.white:"#666",
+                      textAlign:"left", display:"flex", alignItems:"center", gap:8, fontSize:10, fontFamily:"inherit",
+                    }}>
+                      {hw.color
+                        ? <div style={{width:22,height:5,borderRadius:3,background:hw.color,flexShrink:0}}/>
+                        : <div style={{width:22,textAlign:"center",color:C.text,fontSize:13,flexShrink:0}}>—</div>}
+                      {hw.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Finish swatches (drawer carcass colour) */}
+                <div style={{ paddingTop:10, borderTop:`1px solid ${C.border}33` }}>
+                  <div style={{ fontSize:8, letterSpacing:2, color:C.sub, textTransform:"uppercase", marginBottom:8 }}>Carcass Finish</div>
+                  {["matte","gloss","wood"].map(type => (
+                    <div key={type} style={{ marginBottom:10 }}>
+                      <div style={{ fontSize:7, letterSpacing:1.5, color:C.text, textTransform:"uppercase", marginBottom:5 }}>
+                        {type==="wood"?"Wood Grain":type==="matte"?"Supamatt":"Supagloss"}
+                      </div>
+                      <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
+                        {FINISHES.filter(f=>f.type===type).map(f=>(
+                          <div key={f.id} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
+                            <button onClick={()=>updateSel({finish:f.id})} title={f.label} style={{
+                              width:26, height:26, borderRadius:4, cursor:"pointer",
+                              border:selUnit.finish===f.id?`2.5px solid ${C.orange}`:`1.5px solid ${C.border}`,
+                              boxShadow:selUnit.finish===f.id?`0 0 0 2px ${C.orange}44`:"none",
+                              transform:selUnit.finish===f.id?"scale(1.12)":"scale(1)",
+                              transition:"all 0.12s", background:finishBg(f.id),
+                            }}/>
+                            <span style={{ fontSize:6, color:C.sub, textAlign:"center", maxWidth:26, lineHeight:1.2 }}>{f.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>);
+            })()}
+
+            {/* ── DOOR UNITS: Finish swatches, handle, then hinges ── */}
+            {selUnit.type !== "drawer" && (<>
+
+              {/* Finish swatches */}
+              {["matte","gloss","wood"].map(type => (
+                <div key={type} style={{ marginBottom:12 }}>
+                  <div style={{ fontSize:8, letterSpacing:2, color:C.sub, textTransform:"uppercase", marginBottom:7 }}>
+                    {type==="wood"?"Wood Grain":type==="matte"?"Supamatt":"Supagloss"}
+                  </div>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                    {FINISHES.filter(f=>f.type===type).map(f=>(
+                      <div key={f.id} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
+                        <button onClick={()=>updateSel({finish:f.id})} title={f.label} style={{
+                          width:28, height:28, borderRadius:4, cursor:"pointer",
+                          border:selUnit.finish===f.id?`2.5px solid ${C.orange}`:`1.5px solid ${C.border}`,
+                          boxShadow:selUnit.finish===f.id?`0 0 0 2px ${C.orange}44`:"none",
+                          transform:selUnit.finish===f.id?"scale(1.12)":"scale(1)",
+                          transition:"all 0.12s", background:finishBg(f.id),
+                        }}/>
+                        <span style={{ fontSize:7, color:C.sub, textAlign:"center", maxWidth:28, lineHeight:1.2 }}>{f.label}</span>
                       </div>
                     ))}
                   </div>
                 </div>
-              )}
-            </div>
+              ))}
 
-            {step===1&&(
-              <div className="flex flex-col gap-3">
-                <WallGrid placed={placed} setPlaced={setPlaced} selType={selType} setSelType={setSelType} door={door} handle={handle} cs={cs} gridCols={gridCols} setGridCols={setGridCols}/>
-                <div className="rounded-2xl p-3" style={{background:B.white,border:"1.5px solid #E0D8CC"}}>
-                  <p className="text-[9px] font-bold tracking-widest uppercase mb-2" style={{color:B.orange}}>
-                    {selType ? `v ${(APPLIANCES[selType]||PM.cabinets[selType])?.label||selType} selected -- click/tap the grid above to place` : "Select a unit below  x  then click the grid to place it"}
-                  </p>
-                  <Palette selType={selType} setSelType={setSelType}/>
-                </div>
+              {/* Handle / Pull */}
+              <div style={{ marginBottom:12, paddingTop:4, borderTop:`1px solid ${C.border}22` }}>
+                <div style={{ fontSize:8, letterSpacing:2, color:C.sub, textTransform:"uppercase", marginBottom:7 }}>Handle / Pull</div>
+                {HARDWARE.map(hw=>(
+                  <button key={hw.id} onClick={()=>updateSel({hardware:hw.id})} style={{
+                    width:"100%", marginBottom:4, padding:"7px 8px", borderRadius:4, cursor:"pointer",
+                    border:selUnit.hardware===hw.id?`1px solid ${C.orange}`:`1px solid ${C.border}`,
+                    background:selUnit.hardware===hw.id?C.orange+"18":"rgba(255,255,255,0.02)",
+                    color:selUnit.hardware===hw.id?C.white:"#666",
+                    textAlign:"left", display:"flex", alignItems:"center", gap:8, fontSize:10, fontFamily:"inherit",
+                  }}>
+                    {hw.color
+                      ? <div style={{width:22,height:5,borderRadius:3,background:hw.color,flexShrink:0}}/>
+                      : <div style={{width:22,textAlign:"center",color:C.text,fontSize:13,flexShrink:0}}>—</div>}
+                    {hw.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Hinges */}
+              {(() => {
+                const hc = hingeCount(selUnit);
+                return (
+                  <div style={{ paddingTop:10, borderTop:`1px solid ${C.border}33` }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:8 }}>
+                      <div style={{ fontSize:8, letterSpacing:2, color:C.orange, textTransform:"uppercase" }}>Hinges</div>
+                      <div style={{ fontSize:9, color:C.gold, fontWeight:"bold" }}>
+                        {hc.total} hinge{hc.total!==1?"s":""} · {hc.doors} door{hc.doors!==1?"s":""}
+                      </div>
+                    </div>
+                    {HINGES.map(h => {
+                      const isSel = (selUnit.hinge || DEFAULT_HINGE) === h.id;
+                      return (
+                        <button key={h.id} onClick={()=>updateSel({hinge:h.id})} style={{
+                          width:"100%", marginBottom:6, padding:"10px 12px", borderRadius:5, cursor:"pointer",
+                          border: isSel ? `2px solid ${C.orange}` : `1px solid ${C.border}`,
+                          background: isSel ? C.orange+"22" : "rgba(255,255,255,0.02)",
+                          textAlign:"left", fontFamily:"inherit", transition:"all 0.12s",
+                          boxShadow: isSel ? `0 0 0 1px ${C.orange}44` : "none",
+                        }}>
+                          <div style={{ fontSize:11, color: isSel ? C.white : "#AAA", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                            <span style={{ fontWeight: isSel ? "bold" : "normal" }}>{h.label}</span>
+                            <span style={{ fontSize:9, color: isSel ? C.gold : "#555" }}>×{hc.total}</span>
+                          </div>
+                          <div style={{ fontSize:9, color: isSel ? C.gold : "#555", marginTop:3 }}>{h.subtitle}</div>
+                        </button>
+                      );
+                    })}
+                    <div style={{ fontSize:8, color:"#3A3028", marginTop:2, lineHeight:1.5 }}>
+                      {selUnit.type==="tall-single" ? "1 full-height door · 3 hinges" :
+                       selUnit.type==="tall-double" ? "2 stacked doors · 2 hinges each" :
+                       `${hc.doors} door${hc.doors>1?"s":""} · 2 hinges each`}
+                    </div>
+                  </div>
+                );
+              })()}
+            </>)}
+
+            {/* Bulk actions */}
+            <div style={{ display:"flex", flexDirection:"column", gap:4, marginTop:12, paddingTop:10, borderTop:`1px solid ${C.border}` }}>
+              <button onClick={()=>applyAll({finish:selUnit.finish,hardware:selUnit.hardware,hinge:selUnit.hinge,runner:selUnit.runner})} style={sBtn(C.orange+"18",C.orange)}>Apply to All</button>
+              <button onClick={()=>applyType({finish:selUnit.finish,hardware:selUnit.hardware,hinge:selUnit.hinge,runner:selUnit.runner})} style={sBtn("transparent","#777")}>Apply to Same Type</button>
+              <button onClick={()=>{ setSelected(null); }} style={sBtn("transparent","#888")}>← Back to List</button>
+              <button onClick={removeSel} style={sBtn("transparent","#C55")}>Remove Unit</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Bottom CTA — always visible ── */}
+      <div style={{ padding:"10px 10px 10px", borderTop:`1px solid ${C.border}`, background:"#EDE6DC", flexShrink:0, display:"flex", flexDirection:"column", gap:6 }}>
+
+        {phase === "layout" && (
+          <>
+            {units.length > 0 && (
+              <button onClick={onNext} style={{
+                background:C.orange, color:C.white, border:"none", borderRadius:6,
+                width:"100%", padding:"11px 10px", cursor:"pointer",
+                fontSize:11, fontWeight:"bold", letterSpacing:1.5,
+                textTransform:"uppercase", fontFamily:"inherit",
+                display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+                boxShadow:`0 3px 12px ${C.orange}55`,
+              }}>
+                To Materials <span style={{fontSize:14}}>›</span>
+              </button>
+            )}
+            {units.length === 0 && (
+              <div style={{ fontSize:9, color:C.text, textAlign:"center", padding:"6px 0", letterSpacing:1 }}>
+                Add cabinets to continue
               </div>
             )}
-            {step===2&&<Step2 carc={carc} setCarc={setCarc} ct={ct} setCt={setCt}/>}
-            {step===3&&<Step3 door={door} setDoor={setDoor} handle={handle} setHandle={setHandle} placed={placed}/>}
-            {step===4&&<StepPreview placed={placed} carc={carc} ct={ct} door={door} handle={handle} cs={cs}/>}
-            {step===5&&<Step5Quote placed={placed} carc={carc} ct={ct} door={door} handle={handle}/>}
-            {step===6&&<Step6FloorPlan placed={placed} carc={carc} ct={ct} door={door}/> }
-          </motion.div>
-        </AnimatePresence>
+          </>
+        )}
+
+        {phase === "finish" && (
+          <>
+            <button onClick={onNext} style={{
+              background:C.orange, color:C.white, border:"none", borderRadius:6,
+              width:"100%", padding:"11px 10px", cursor:"pointer",
+              fontSize:11, fontWeight:"bold", letterSpacing:1.5,
+              textTransform:"uppercase", fontFamily:"inherit",
+              display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+              boxShadow:`0 3px 12px ${C.orange}55`,
+            }}>
+              Get Quote <span style={{fontSize:14}}>›</span>
+            </button>
+            {!showFinishes && (
+              <div style={{ fontSize:9, color:C.text, textAlign:"center", letterSpacing:1 }}>
+                Click a cabinet above to edit its finish
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </aside>
+  );
+}
+
+// ─── Materials Panel ──────────────────────────────────────────────────────────
+function MaterialsPanel({ materials, setMaterials, onNext, onBack }) {
+  const set = patch => setMaterials(m => ({ ...m, ...patch }));
+
+  // When type changes, clear colour if it doesn't belong to new type
+  function selectType(id) {
+    const currentColour = materials.ctColour;
+    const colourStillValid = currentColour &&
+      COUNTERTOP_COLOURS.find(c => c.id === currentColour)?.types?.includes(id);
+    set({ ctType: id, ctColour: colourStillValid ? currentColour : null });
+  }
+
+  // Only show colours relevant to selected type
+  const visibleColours = materials.ctType
+    ? COUNTERTOP_COLOURS.filter(c => c.types.includes(materials.ctType))
+    : COUNTERTOP_COLOURS;
+
+  function CtSwatch({ ct }) {
+    const sel = materials.ctColour === ct.id;
+    return (
+      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+        <button onClick={() => set({ ctColour: ct.id })} title={ct.label} style={{
+          width:50, height:34, borderRadius:5, cursor:"pointer",
+          border: sel ? `2.5px solid ${C.orange}` : `1.5px solid ${C.border}`,
+          boxShadow: sel ? `0 0 0 2px ${C.orange}44` : "none",
+          transform: sel ? "scale(1.1)" : "scale(1)",
+          transition:"all 0.12s",
+          background: countertopBg(ct),
+          flexShrink: 0,
+        }}/>
+        <span style={{ fontSize:7, color: sel ? C.white : "#666", textAlign:"center", maxWidth:52, lineHeight:1.3 }}>{ct.label}</span>
+      </div>
+    );
+  }
+
+  const ready = materials.ctType && materials.ctColour && materials.carcass;
+  const isPremiumTop = ["marble","quartz"].includes(materials.ctType);
+  const isPremiumAll = materials.carcass==="solid" && isPremiumTop;
+  const isMid        = materials.carcass==="solid" || isPremiumTop;
+
+  return (
+    <aside style={{ width:220, background:C.panel, display:"flex", flexDirection:"column", height:"100%", overflow:"hidden" }}>
+      <div style={{ padding:"10px 14px", fontSize:8, letterSpacing:3, color:C.orange, textTransform:"uppercase", borderBottom:`1px solid ${C.border}`, background:"#EDE6DC", flexShrink:0 }}>
+        ② Materials · <span style={{ color:C.sub }}>preview live on wall</span>
+      </div>
+      <div style={{ flex:1, overflowY:"auto", padding:"12px 12px" }}>
+
+        {/* ── Countertop type ── */}
+        <div style={{ marginBottom:14 }}>
+          <div style={{ fontSize:8, letterSpacing:2, color:"#9A8878", textTransform:"uppercase", marginBottom:8 }}>Countertop Type</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
+            {COUNTERTOP_TYPES.map(t => {
+              const sel = materials.ctType === t.id;
+              return (
+                <button key={t.id} onClick={() => selectType(t.id)} style={{
+                  padding:"9px 11px", borderRadius:5, cursor:"pointer", textAlign:"left",
+                  border: sel ? `1.5px solid ${C.orange}` : `1px solid ${C.border}`,
+                  background: sel ? C.orange+"20" : "rgba(255,255,255,0.02)",
+                  fontFamily:"inherit", transition:"all 0.12s",
+                }}>
+                  <div style={{ fontSize:11, color: sel ? C.white : "#AAA", fontWeight: sel ? "bold" : "normal" }}>{t.label}</div>
+                  <div style={{ fontSize:8, color: sel ? C.gold : "#555", marginTop:2 }}>{t.subtitle}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── Countertop colour — filtered by type ── */}
+        <div style={{ marginBottom:14 }}>
+          <div style={{ fontSize:8, letterSpacing:2, color:"#9A8878", textTransform:"uppercase", marginBottom:8 }}>
+            Countertop Colour
+            {!materials.ctType && <span style={{ color:C.text, marginLeft:6 }}>— pick type first</span>}
+          </div>
+          {materials.ctType ? (
+            <div style={{ display:"flex", flexWrap:"wrap", gap:7 }}>
+              {visibleColours.map(ct => <CtSwatch key={ct.id} ct={ct}/>)}
+            </div>
+          ) : (
+            <div style={{ fontSize:9, color:C.text, fontStyle:"italic" }}>Select a countertop type above to see colour options.</div>
+          )}
+        </div>
+
+        {/* Divider */}
+        <div style={{ height:1, background:C.border, margin:"4px 0 14px" }}/>
+
+        {/* ── Carcass material ── */}
+        <div style={{ marginBottom:12 }}>
+          <div style={{ fontSize:8, letterSpacing:2, color:"#9A8878", textTransform:"uppercase", marginBottom:8 }}>Carcass Build</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
+            {CARCASS_TYPES_MATERIAL.map(t => {
+              const sel = materials.carcass === t.id;
+              return (
+                <button key={t.id} onClick={() => set({ carcass: t.id })} style={{
+                  padding:"9px 11px", borderRadius:5, cursor:"pointer", textAlign:"left",
+                  border: sel ? `1.5px solid ${C.orange}` : `1px solid ${C.border}`,
+                  background: sel ? C.orange+"20" : "rgba(255,255,255,0.02)",
+                  fontFamily:"inherit", transition:"all 0.12s",
+                }}>
+                  <div style={{ fontSize:11, color: sel ? C.white : "#AAA", fontWeight: sel ? "bold" : "normal" }}>{t.label}</div>
+                  <div style={{ fontSize:8, color: sel ? C.gold : "#555", marginTop:2 }}>{t.subtitle}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Pricing tier */}
+        {materials.carcass && materials.ctType && (
+          <div style={{ background:"rgba(0,0,0,0.3)", border:`1px solid ${C.border}`, borderRadius:5, padding:"9px 11px" }}>
+            <div style={{ fontSize:7, letterSpacing:2, color:C.gold, textTransform:"uppercase", marginBottom:5 }}>Pricing Tier</div>
+            <div style={{ fontSize:10, color:"#A89888" }}>
+              {isPremiumAll
+                ? <span style={{color:C.orange}}>★ Premium — solid carcass + {materials.ctType} top</span>
+                : isMid
+                ? <span style={{color:C.gold}}>◆ Mid-range — one premium element</span>
+                : <span style={{color:"#9A8878"}}>● Standard — melamine throughout</span>
+              }
+            </div>
+            <div style={{ fontSize:8, color:C.sub, marginTop:4 }}>Final pricing confirmed on quote.</div>
+          </div>
+        )}
       </div>
 
-      {/* Bottom nav */}
-      <div className="fixed bottom-0 left-0 right-0 px-4 py-3 flex gap-2"
-        style={{background:B.white,borderTop:`2px solid ${B.parchment}`,boxShadow:"0 -4px 20px rgba(37,25,23,0.12)"}}>
-        {step>1&&(
-          <button onClick={()=>setStep(s=>s-1)}
-            className="flex items-center gap-1.5 px-4 py-3 rounded-xl font-bold text-sm active:scale-95 transition-all"
-            style={{background:B.parchment,color:B.dark}}>
-            <ChevronLeft size={16}/> Back
-          </button>
+      {/* Nav */}
+      <div style={{ padding:"10px 10px 10px", borderTop:`1px solid ${C.border}`, background:"#EDE6DC", flexShrink:0, display:"flex", flexDirection:"column", gap:6 }}>
+        <button onClick={onNext} disabled={!ready} style={{
+          background: ready ? C.orange : C.border,
+          color: ready ? C.white : "#444",
+          border:"none", borderRadius:6, width:"100%", padding:"11px 10px",
+          cursor: ready ? "pointer" : "not-allowed",
+          fontSize:11, fontWeight:"bold", letterSpacing:1.5, textTransform:"uppercase",
+          fontFamily:"inherit",
+          display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+          boxShadow: ready ? `0 3px 12px ${C.orange}55` : "none",
+          transition:"all 0.15s",
+        }}>
+          To Finishes <span style={{fontSize:14}}>›</span>
+        </button>
+        {!ready && (
+          <div style={{ fontSize:9, color:C.text, textAlign:"center", letterSpacing:1 }}>
+            Complete all selections above
+          </div>
         )}
-        {step<6?(
-          <button disabled={placed.filter(p=>!APPLIANCES[p.tid]).length===0&&step===1} onClick={()=>setStep(s=>s+1)}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-sm tracking-widest uppercase active:scale-95 transition-all disabled:opacity-40"
-            style={{background:placed.length>0||step>1?B.dark:"#C4B8A8",color:B.white}}>
-            {step===1&&`Next -- ${placed.filter(p=>!APPLIANCES[p.tid]).length} unit${placed.filter(p=>!APPLIANCES[p.tid]).length!==1?"s":""} placed`}
-            {step===2&&"Next -> Finishes"}
-            {step===3&&"Next -> Preview"}
-            {step===4&&"View Quote"}
-            {step===5&&"Floor Plan & Spec"}
-            <ChevronRight size={16}/>
-          </button>
-        ):(
-          <button onClick={()=>{setStep(1);setPlaced([]);setSelType(null);}}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm active:scale-95 transition-all"
-            style={{background:B.parchment,color:B.dark}}>
-            Start Over
-          </button>
-        )}
+        <button onClick={onBack} style={{
+          background:"transparent", color:C.sub, border:`1px solid ${C.border}44`,
+          borderRadius:5, width:"100%", padding:"7px 8px", cursor:"pointer",
+          fontSize:9, letterSpacing:1, textTransform:"uppercase", fontFamily:"inherit",
+        }}>← Back to Layout</button>
       </div>
+    </aside>
+  );
+}
+
+// ─── Step Indicator ───────────────────────────────────────────────────────────
+function StepIndicator({ phase, setPhase }) {
+  const steps = [
+    ["layout",   "01", "Layout"],
+    ["materials","02", "Materials"],
+    ["finish",   "03", "Finishes"],
+  ];
+  const order = steps.map(s => s[0]);
+  const cur   = order.indexOf(phase);
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:0 }}>
+      {steps.map(([p, num, lbl], i) => {
+        const active = phase === p;
+        const done   = order.indexOf(p) < cur;
+        return (
+          <div key={p} style={{ display:"flex", alignItems:"center" }}>
+            <button onClick={() => setPhase(p)} style={{
+              display:"flex", alignItems:"center", gap:7, padding:"7px 13px",
+              background: active ? C.orange : done ? C.border : "transparent",
+              border: active ? "none" : `1px solid ${C.border}`,
+              borderRadius:5, cursor:"pointer",
+              color: active ? C.white : done ? C.orange : C.sub,
+              fontFamily:"inherit", fontSize:10, letterSpacing:1.2, textTransform:"uppercase",
+            }}>
+              <span style={{
+                width:18, height:18, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center",
+                background: active ? C.white : done ? C.orange+"33" : C.border,
+                color: active ? C.orange : done ? C.orange : C.sub,
+                fontSize:8, fontWeight:"bold", flexShrink:0,
+              }}>{done ? "✓" : num}</span>
+              {lbl}
+            </button>
+            {i < steps.length-1 && <div style={{ width:16, height:1, background:C.border, margin:"0 2px" }}/>}
+          </div>
+        );
+      })}
     </div>
   );
 }
+
+// ─── Main App ─────────────────────────────────────────────────────────────────
+export default function App() {
+  const [phase,    setPhase]    = useState("landing");
+  const [units,    setUnits]    = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [drag,     setDrag]     = useState(null);
+  const [zoom,     setZoom]     = useState(1);
+  const [roomW,    setRoomW]    = useState(4200);
+  const [materials, setMaterials] = useState({ ctType: null, ctColour: null, carcass: null });
+  const [showQuote,  setShowQuote]  = useState(false);
+
+  // Live job total — recalculates whenever units or materials change
+  const jobTotal = (units.length > 0 && materials.ctColour && materials.carcass)
+    ? calcJobTotal(units, materials)
+    : null;
+  const [quoteSent,  setQuoteSent]  = useState(false);
+  const [quoteSending, setQuoteSending] = useState(false);
+  const [quoteError,   setQuoteError]   = useState("");
+  const [cName,   setCName]   = useState("");
+  const [cEmail,  setCEmail]  = useState("");
+  const [cPhone,  setCPhone]  = useState("");
+
+  const canvasRef = useRef(null);
+  const wrapRef    = useRef(null);
+  const idRef     = useRef(1);
+  const [canvasW, setCanvasW] = useState(800); // actual rendered canvas px width
+
+  // Measure canvas width whenever window or panel changes
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      const w = entries[0]?.contentRect?.width;
+      if (w && w > 10) setCanvasW(w);
+    });
+    ro.observe(el);
+    setCanvasW(el.getBoundingClientRect().width || 800);
+    return () => ro.disconnect();
+  }, []);
+
+  const { w: winW, h: winH } = useWindowSize();
+  const isPhone  = winW < 640;
+  const isTablet = winW >= 640 && winW < 1024;
+  const isMobile = winW < 1024;  // phone or tablet
+
+  // Panel is hidden on phone (shown as bottom sheet instead) or shown as sidebar on tablet+
+  const PANEL_W  = isMobile ? 0 : 210;
+
+  // Canvas fills available width minus panel, minus padding
+  const canvasPad = isPhone ? 8 : 16;
+
+  // Mobile: left panel slides up from bottom as a drawer
+  const [panelOpen,   setPanelOpen]   = useState(false);
+  const [panelHidden, setPanelHidden] = useState(false);
+  const pxPerMm     = (canvasW / roomW) * zoom;
+  const scaledW     = roomW     * pxPerMm;
+  const scaledH     = WALL_H_MM * pxPerMm;
+  const FLOOR_Y     = scaledH - 60*pxPerMm;
+
+  function unitTop(unit) {
+    if (unit.type === "upper") return FLOOR_Y - TALL_H_MM*pxPerMm;
+    return FLOOR_Y - unit.height*pxPerMm;
+  }
+
+  function paletteDragStart(e, c) {
+    e.dataTransfer.effectAllowed = "copy";
+    e.dataTransfer.setData("cid", c.id);
+  }
+  function canvasDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }
+  function canvasDrop(e) {
+    e.preventDefault();
+    const cid = e.dataTransfer.getData("cid");
+    const c   = CARCASS_TYPES.find(x => x.id===cid) || APPLIANCE_TYPES.find(x => x.id===cid);
+    if (!c) return;
+    const rect  = e.currentTarget.getBoundingClientRect();
+    const xPx   = e.clientX - rect.left + e.currentTarget.scrollLeft;
+    const xSnap = Math.max(0, Math.min(snapMm(xPx/pxPerMm - c.width/2), roomW-c.width));
+    const inheritFinish = units.length > 0 ? units[units.length-1].finish : DEFAULT_FINISH;
+    const inheritHW     = units.length > 0 ? units[units.length-1].hardware : DEFAULT_HW;
+    const nu = { id:idRef.current++, type:c.type, width:c.width, height:c.height, xMm:xSnap, finish:inheritFinish, hardware:inheritHW, hinge:DEFAULT_HINGE, runner:DEFAULT_RUNNER, rotation:0, ...(c.type==="appliance"?{appId:c.id}:{}) };
+    setUnits(p => [...p, nu]);
+    setSelected(nu.id);
+  }
+
+  function unitPointerDown(e, unit) {
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setSelected(unit.id);
+    const rect = canvasRef.current.getBoundingClientRect();
+    const xPx  = e.clientX - rect.left + canvasRef.current.scrollLeft;
+    setDrag({ unitId:unit.id, offsetMm: xPx/pxPerMm - unit.xMm });
+  }
+  function canvasPtrMove(e) {
+    if (!drag) return;
+    const rect  = canvasRef.current.getBoundingClientRect();
+    const xPx   = e.clientX - rect.left + canvasRef.current.scrollLeft;
+    const unit  = units.find(u => u.id===drag.unitId);
+    if (!unit) return;
+    setUnits(p => p.map(u => u.id===drag.unitId
+      ? {...u, xMm: Math.max(0, Math.min(snapMm(xPx/pxPerMm - drag.offsetMm), roomW-u.width))}
+      : u));
+  }
+  function canvasPtrUp() { setDrag(null); }
+
+  useEffect(() => {
+    const fn = e => {
+      if ((e.key==="Delete"||e.key==="Backspace") && selected) {
+        setUnits(p => p.filter(u => u.id!==selected));
+        setSelected(null);
+      }
+    };
+    window.addEventListener("keydown", fn);
+    return () => window.removeEventListener("keydown", fn);
+  }, [selected]);
+
+  function tapAdd(c) {
+    // Place at a sensible default x position (spaced from existing units of same row)
+    const existing = units.filter(u => u.type === c.type);
+    const lastX    = existing.length > 0 ? Math.max(...existing.map(u => u.xMm + u.width)) : 0;
+    const xSnap    = Math.min(snapMm(lastX), roomW - c.width);
+    const nu = { id:idRef.current++, type:c.type, width:c.width, height:c.height, xMm:xSnap, finish:DEFAULT_FINISH, hardware:DEFAULT_HW, hinge:DEFAULT_HINGE, runner:DEFAULT_RUNNER, rotation:0, ...(c.type==="appliance"?{appId:c.id}:{}) };
+    setUnits(p => [...p, nu]);
+    setSelected(nu.id);
+  }
+
+  // Layout → Materials
+  function goToMaterials() {
+    setPhase("materials");
+    setSelected(null);
+  }
+  // Materials → Finishes
+  function goToFinish() {
+    setPhase("finish");
+    if (units.length > 0) setSelected(units[0].id);
+  }
+
+  const totalFloor      = units.filter(u=>u.type!=="appliance").reduce((s,u) =>
+    ["base","drawer","tall-single","tall-double","corner"].includes(u.type) ? s+u.width : s, 0);
+  const totalWall       = units.filter(u=>u.type!=="appliance").reduce((s,u) =>
+    u.type === "upper" ? s+u.width : s, 0);
+  const totalCtRun      = units.filter(u=>u.type!=="appliance").reduce((s,u) =>
+    ["base","drawer","corner"].includes(u.type) ? s+u.width : s, 0);
+  const totalFillerRun  = units.filter(u=>u.type!=="appliance").reduce((s,u) =>
+    ["tall-single","tall-double","upper"].includes(u.type) ? s+u.width : s, 0);
+  const matCtType   = COUNTERTOP_TYPES.find(t => t.id === materials.ctType);
+  const matCtColour = COUNTERTOP_COLOURS.find(t => t.id === materials.ctColour);
+  const matCarcass  = CARCASS_TYPES_MATERIAL.find(t => t.id === materials.carcass);
+
+  // Build enriched BOM with fittings
+  const bom = units.filter(u => u.type !== "appliance").map(u => {
+    const ct   = CARCASS_TYPES.find(c => c.type===u.type && c.width===u.width);
+    const hc   = hingeCount(u);
+    const dc   = drawerCount(u);
+    const hingeLabel  = HINGES.find(h=>h.id===(u.hinge||DEFAULT_HINGE))?.label || "";
+    const runnerLabel = RUNNERS.find(r=>r.id===(u.runner||DEFAULT_RUNNER))?.label || "";
+    return {
+      label:       ct?.label || u.type,
+      width:       u.width,
+      finish:      getFinish(u.finish).label,
+      hw:          HARDWARE.find(h=>h.id===u.hardware)?.label,
+      rot:         u.type==="corner" ? CORNER_ROTATIONS[u.rotation||0] : null,
+      hinges:      hc.total,
+      hingeLabel,
+      drawers:     dc,
+      runnerLabel,
+      hasDoors:    hc.total > 0,
+      hasDrawers:  dc > 0,
+    };
+  });
+
+  // Fitting totals for quote summary
+  const totalHingesStd  = bom.filter(b=>b.hingeLabel.includes("Standard")).reduce((s,b)=>s+b.hinges,0);
+  const totalHingesSoft = bom.filter(b=>b.hingeLabel.includes("Soft")).reduce((s,b)=>s+b.hinges,0);
+  const totalHinges     = totalHingesStd + totalHingesSoft;
+  const totalRunnersStd  = bom.filter(b=>b.runnerLabel.includes("Standard")).reduce((s,b)=>s+b.drawers,0);
+  const totalRunnersSoft = bom.filter(b=>b.runnerLabel.includes("Soft")).reduce((s,b)=>s+b.drawers,0);
+  const totalRunners     = totalRunnersStd + totalRunnersSoft;
+
+  const clampZoom = v => setZoom(Math.min(3, Math.max(0.5, +v.toFixed(2))));
+  // ── Build plain-text quote summary (used for email body + WhatsApp) ─────────
+  function buildQuoteSummary() {
+    const lines = [];
+    lines.push("HWH DESIGNS — QUOTE REQUEST");
+    lines.push("============================");
+    lines.push(`Client:  ${cName}`);
+    lines.push(`Email:   ${cEmail}`);
+    lines.push(`Phone:   ${cPhone || "—"}`);
+    lines.push("");
+    lines.push("CABINET LAYOUT");
+    lines.push("--------------");
+    bom.forEach((item, i) => {
+      let line = `${i+1}. ${item.label} ${item.width}mm — ${item.finish}`;
+      if (item.rot)        line += ` (${item.rot})`;
+      if (item.hasDoors)   line += ` | ${item.hinges}× ${item.hingeLabel}`;
+      if (item.hasDrawers) line += ` | ${item.drawers} pairs ${item.runnerLabel}`;
+      lines.push(line);
+    });
+    lines.push("");
+    lines.push(`Floor run:           ${(totalFloor/1000).toFixed(2)}m`);
+    if (totalWall > 0)      lines.push(`Wall cabinet run:    ${(totalWall/1000).toFixed(2)}m`);
+    if (totalCtRun > 0)     lines.push(`Countertop run:      ${(totalCtRun/1000).toFixed(2)}m`);
+    if (totalFillerRun > 0) lines.push(`Filler strip run:    ${(totalFillerRun/1000).toFixed(2)}m`);
+    lines.push("");
+    if (matCarcass || matCtType || matCtColour) {
+      lines.push("MATERIALS");
+      lines.push("---------");
+      if (matCarcass)  lines.push(`Carcass build:     ${matCarcass.label}`);
+      if (matCtType)   lines.push(`Countertop type:   ${matCtType.label}`);
+      if (matCtColour) lines.push(`Countertop colour: ${matCtColour.label}`);
+      if (totalCtRun > 0) lines.push(`Countertop run:    ${(totalCtRun/1000).toFixed(2)}m`);
+      lines.push("");
+    }
+    if (totalHinges > 0 || totalRunners > 0) {
+      lines.push("FITTINGS SUMMARY");
+      lines.push("----------------");
+      if (totalHingesStd)   lines.push(`Standard Hinges:         x ${totalHingesStd}`);
+      if (totalHingesSoft)  lines.push(`Soft-Close Hinges:       x ${totalHingesSoft}`);
+      if (totalHinges)      lines.push(`Total Hinges:            x ${totalHinges}`);
+      if (totalRunnersStd)  lines.push(`Standard Runner Pairs:   x ${totalRunnersStd}`);
+      if (totalRunnersSoft) lines.push(`Soft-Close Runner Pairs: x ${totalRunnersSoft}`);
+      if (totalRunners)     lines.push(`Total Runner Pairs:      x ${totalRunners}`);
+    }
+    if (jobTotal !== null) {
+      lines.push("");
+      lines.push("ESTIMATED TOTAL");
+      lines.push("---------------");
+      lines.push(`R ${jobTotal.toLocaleString("en-ZA")} (excl. VAT)`);
+      lines.push("Labour & installation quoted separately.");
+    }
+    return lines.join("\n");
+  }
+
+  // ── Submit: EmailJS email + pre-filled WhatsApp notification ─────────────────
+  async function handleSubmitQuote() {
+    setQuoteError("");
+    setQuoteSending(true);
+    const summary = buildQuoteSummary();
+
+    // EmailJS send — configure Service ID + Template ID in emailjs.com dashboard
+    // Template variables: to_email, client_name, client_email,
+    //   client_phone, quote_summary, units_count, floor_run
+    try {
+      await window.emailjs.send(
+        "YOUR_SERVICE_ID",   // <- replace with your EmailJS Service ID
+        "YOUR_TEMPLATE_ID",  // <- replace with your EmailJS Template ID
+        {
+          to_email:      "kim@hwhdesigns.co.za",
+          client_name:   cName,
+          client_email:  cEmail,
+          client_phone:  cPhone || "—",
+          quote_summary: summary,
+          units_count:   String(bom.length),
+          floor_run:     `${totalFloor}mm (${(totalFloor/1000).toFixed(2)}m)`,
+        }
+      );
+    } catch (err) {
+      console.error("EmailJS error:", err);
+      setQuoteError("Email delivery failed — please try again or contact us directly.");
+      setQuoteSending(false);
+      return;
+    }
+
+    // WhatsApp deep link — opens WhatsApp with pre-filled message, user taps Send
+    const waLines = [
+      "Hi Kim! I just submitted a quote via the HWH Designs configurator.",
+      "",
+      `*Client:* ${cName}`,
+      `*Email:* ${cEmail}`,
+      `*Phone:* ${cPhone || "—"}`,
+      "",
+      `*${bom.length} unit${bom.length!==1?"s":""} | ${(totalFloor/1000).toFixed(2)}m floor run*`,
+      "",
+      "Full spec emailed to kim@hwhdesigns.co.za"
+    ].join("\n");
+    window.open("https://wa.me/27828899787?text=" + encodeURIComponent(waLines), "_blank");
+
+    setQuoteSending(false);
+    setQuoteSent(true);
+    setTimeout(() => {
+      setShowQuote(false);
+      setQuoteSent(false);
+      setCName(""); setCEmail(""); setCPhone("");
+    }, 4000);
+  }
+
+  if (phase === "landing") return <LandingPage onStart={() => setPhase("layout")}/>;
+
+  return (
+    <div style={{ height:"100vh", background:C.darkbg, fontFamily:"'Trebuchet MS',sans-serif", color:C.text, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+
+      {/* ── Header ── */}
+      <header style={{ padding:`0 ${isPhone?10:20}px`, borderBottom:`3px solid ${C.orange}`, background:C.black, display:"flex", alignItems:"center", gap:isPhone?8:16, height:isPhone?50:58, flexShrink:0 }}>
+
+        {/* Logo */}
+        <div style={{ display:"flex", alignItems:"center", gap:10, marginRight:"auto" }}>
+          <HWHLogo size={isPhone?24:32}/>
+          <div style={{ borderLeft:`2px solid ${C.orange}55`, paddingLeft:10 }}>
+            <div style={{ fontSize:isPhone?12:14, fontWeight:"bold", letterSpacing:2, color:C.white, textTransform:"uppercase", lineHeight:1 }}>HWH</div>
+            <div style={{ fontSize:isPhone?8:10, letterSpacing:3, color:C.gold, textTransform:"uppercase" }}>Designs</div>
+          </div>
+          {!isPhone && (
+            <div style={{ borderLeft:`1px solid ${C.border}`, paddingLeft:12, marginLeft:2 }}>
+              <div style={{ fontSize:9, letterSpacing:3, color:C.sub, textTransform:"uppercase" }}>Built-in</div>
+              <div style={{ fontSize:11, letterSpacing:2, color:"#9A8878", textTransform:"uppercase" }}>Configurator</div>
+            </div>
+          )}
+        </div>
+
+        {/* Step indicator — icon-only on phone */}
+        {isPhone ? (
+          <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+            {[["layout","1"],["materials","2"],["finish","3"]].map(([p,n],i,arr) => {
+              const order = arr.map(a=>a[0]);
+              const cur   = order.indexOf(phase);
+              const done  = order.indexOf(p) < cur;
+              const active= phase===p;
+              return (
+                <div key={p} style={{ display:"flex", alignItems:"center" }}>
+                  <button onClick={()=>setPhase(p)} style={{
+                    width:24, height:24, borderRadius:"50%", border:"none", cursor:"pointer",
+                    background: active ? C.orange : done ? C.orange+"33" : C.border,
+                    color: active ? C.white : done ? C.orange : C.sub,
+                    fontSize:9, fontWeight:"bold", display:"flex", alignItems:"center", justifyContent:"center",
+                  }}>{done?"✓":n}</button>
+                  {i<arr.length-1 && <div style={{width:10,height:1,background:C.border}}/>}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <StepIndicator phase={phase} setPhase={setPhase}/>
+        )}
+
+        {/* Controls */}
+        <div style={{ display:"flex", gap:isPhone?6:8, alignItems:"center" }}>
+          {/* Room selector — hidden on phone to save space */}
+          {!isPhone && (
+            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <span style={{ fontSize:9, color:C.sub, letterSpacing:1, textTransform:"uppercase" }}>Room</span>
+              <select value={roomW} onChange={e=>setRoomW(+e.target.value)} style={{ background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"4px 7px", borderRadius:4, fontSize:11, fontFamily:"inherit" }}>
+                {[2400,3000,3600,4200,4800,5400,6000,6600,7200,7800,8400,9000,9600,10200,10800,11400,12000].map(w =>
+                  <option key={w} value={w}>{(w/1000).toFixed(1)}m</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Zoom */}
+          <div style={{ display:"flex", alignItems:"center", gap:2, background:C.panel, borderRadius:5, padding:"3px 6px", border:`1px solid ${C.border}` }}>
+            <button onClick={()=>clampZoom(zoom-0.25)} style={ZB}>−</button>
+            {!isPhone && <span style={{ fontSize:10, color:"#9A8878", minWidth:28, textAlign:"center" }}>{Math.round(zoom*100)}%</span>}
+            <button onClick={()=>clampZoom(zoom+0.25)} style={ZB}>+</button>
+            <button onClick={()=>clampZoom(1)} style={{ ...ZB, fontSize:8, color:C.sub, borderLeft:`1px solid ${C.border}`, paddingLeft:5, marginLeft:2 }}>FIT</button>
+          </div>
+
+          {/* Quote */}
+          <button onClick={()=>setShowQuote(true)} style={{ background:C.orange, color:C.white, border:"none", borderRadius:5, padding:isPhone?"7px 10px":"8px 16px", cursor:"pointer", fontSize:isPhone?10:11, fontWeight:"bold", letterSpacing:1, textTransform:"uppercase", fontFamily:"inherit", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:6 }}>
+            {isPhone ? "Quote" : "Get Quote"}
+            {jobTotal !== null && <span style={{ background:"rgba(0,0,0,0.25)", borderRadius:3, padding:"2px 6px", fontSize:isPhone?9:10, fontWeight:"bold", letterSpacing:0 }}>R {jobTotal.toLocaleString("en-ZA")}</span>}
+          </button>
+        </div>
+      </header>
+
+      {/* ── Phone: room selector row below header ── */}
+      {isPhone && (
+        <div style={{ background:"#EDE6DC", borderBottom:`1px solid ${C.border}`, padding:"6px 10px", display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+          <span style={{ fontSize:9, color:C.sub, letterSpacing:1, textTransform:"uppercase" }}>Room width</span>
+          <select value={roomW} onChange={e=>setRoomW(+e.target.value)} style={{ background:C.panel, border:`1px solid ${C.border}`, color:C.text, padding:"4px 8px", borderRadius:4, fontSize:11, fontFamily:"inherit", flex:1 }}>
+            {[2400,3000,3600,4200,4800,5400,6000,6600,7200,7800,8400,9000,9600,10200,10800,11400,12000].map(w =>
+              <option key={w} value={w}>{(w/1000).toFixed(1)}m</option>)}
+          </select>
+        </div>
+      )}
+
+      {/* ── Body ── */}
+      <div style={{ display:"flex", flex:1, overflow:"hidden" }}>
+
+        {/* ══ Collapsible sidebar — always present on desktop ══ */}
+        {!isMobile && (
+          <div style={{
+            position:"relative", flexShrink:0,
+            width: panelHidden ? 0 : 220,
+            transition:"width 0.22s cubic-bezier(.4,0,0.2,1)",
+            overflow:"visible",
+          }}>
+            {/* Panel body */}
+            <div style={{
+              position:"absolute", top:0, left:0, bottom:0,
+              width:220, background:C.panel,
+              borderRight:`1px solid ${C.border}`,
+              display:"flex", flexDirection:"column",
+              transform: panelHidden ? "translateX(-220px)" : "translateX(0)",
+              transition:"transform 0.22s cubic-bezier(.4,0,0.2,1)",
+              overflow:"hidden",
+              zIndex:10,
+            }}>
+              {/* Phase-specific content */}
+              {phase === "layout" && (
+                <LeftPanel
+                  phase={phase} units={units} selected={selected}
+                  setSelected={setSelected} setUnits={setUnits}
+                  onClearAll={()=>{setUnits([]);setSelected(null);}}
+                  onPaletteDragStart={paletteDragStart}
+                  totalFloor={totalFloor}
+                  onNext={goToMaterials}
+                />
+              )}
+              {phase === "materials" && (
+                <MaterialsPanel
+                  materials={materials} setMaterials={setMaterials}
+                  onNext={goToFinish} onBack={()=>setPhase("layout")}
+                />
+              )}
+              {phase === "finish" && (
+                <LeftPanel
+                  phase={phase} units={units} selected={selected}
+                  setSelected={setSelected} setUnits={setUnits}
+                  onClearAll={()=>{setUnits([]);setSelected(null);}}
+                  onPaletteDragStart={paletteDragStart}
+                  totalFloor={totalFloor}
+                  onNext={()=>setShowQuote(true)}
+                />
+              )}
+            </div>
+
+            {/* ── Hide/Show tab — sits on the right edge of the sidebar ── */}
+            <button
+              onClick={()=>setPanelHidden(h=>!h)}
+              title={panelHidden ? "Show panel" : "Hide panel"}
+              style={{
+                position:"absolute",
+                top:"50%", right:0,
+                transform:"translateY(-50%) translateX(100%)",
+                background:C.black,
+                border:`1px solid ${C.border}`,
+                borderLeft:"none",
+                borderRadius:"0 6px 6px 0",
+                color: panelHidden ? C.orange : "#666",
+                cursor:"pointer",
+                padding:"14px 5px",
+                zIndex:20,
+                display:"flex", flexDirection:"column", alignItems:"center", gap:4,
+                writingMode:"vertical-rl",
+                fontSize:8, letterSpacing:1.5, textTransform:"uppercase",
+                fontFamily:"inherit",
+                transition:"color 0.15s",
+              }}
+              onMouseEnter={e=>e.currentTarget.style.color=C.orange}
+              onMouseLeave={e=>e.currentTarget.style.color=panelHidden?C.orange:"#666"}
+            >
+              {panelHidden ? "▶ Show" : "◀ Hide"}
+            </button>
+          </div>
+        )}
+
+          {/* ── Canvas ── */}
+          <main ref={wrapRef} style={{ flex:1, background:C.darkbg, display:"flex", flexDirection:"column", padding:`${canvasPad}px`, paddingBottom:isMobile?`calc(${canvasPad}px + 58px)`:`${canvasPad}px`, overflow:"hidden", minWidth:0 }}>
+            <div style={{ fontSize:8, color: phase==="layout"?"#3A2E28":C.orange+"55", marginBottom:6, letterSpacing:1.5, textTransform:"uppercase", textAlign:"center" }}>
+              {phase==="layout"
+                ? isMobile ? "Tap ＋ panel · tap to place · drag to move" : "Drag units from the panel · drop on wall · drag to reposition · Delete to remove"
+                : phase==="materials"
+                ? "Adjust materials in the panel — changes preview live on the wall"
+                : "Select a cabinet in the panel — finish changes preview live on the wall"}
+            </div>
+
+            <div style={{ width:"100%", height:3, background:`linear-gradient(90deg,${C.orange},${C.gold})`, borderRadius:"2px 2px 0 0", flexShrink:0 }}/>
+
+            <div ref={canvasRef}
+              onDrop={canvasDrop} onDragOver={canvasDragOver}
+              onPointerMove={canvasPtrMove} onPointerUp={canvasPtrUp}
+              onClick={()=>setSelected(null)}
+              style={{
+                width:"100%", flex:1, overflow:"auto",
+                border:`1px solid ${C.border}`, borderTop:"none",
+                background:"#DDD6CC",
+                cursor:drag?"grabbing":"default",
+                boxShadow:"0 8px 32px rgba(0,0,0,0.7)",
+              }}
+            >
+              <div style={{ position:"relative", width:scaledW, height:scaledH, background:"linear-gradient(180deg,#EAE4DC 0%,#E4DDD4 50%,#DDD6CC 100%)" }}>
+                {Array.from({length:Math.ceil(roomW/200)+1}).map((_,i)=>(
+                  <div key={i} style={{ position:"absolute", left:i*200*pxPerMm, top:0, height:"100%", width:1,
+                    background:i%5===0?"rgba(160,90,40,0.25)":"rgba(44,33,26,0.06)", pointerEvents:"none" }}/>
+                ))}
+                <div style={{ position:"absolute", left:0, right:0, bottom:0, height:60*pxPerMm,
+                  background:"rgba(150,130,110,0.18)", borderTop:"2px solid rgba(160,90,40,0.35)", pointerEvents:"none" }}/>
+                {Array.from({length:Math.floor(roomW/600)+1}).map((_,i)=>(
+                  <div key={i} style={{ position:"absolute", left:i*600*pxPerMm, bottom:52*pxPerMm, pointerEvents:"none" }}>
+                    <div style={{ width:1, height:6, background:"rgba(140,80,30,0.45)" }}/>
+                    {i>0 && <div style={{ fontSize:8, color:"rgba(70,48,32,0.8)", marginTop:1, whiteSpace:"nowrap" }}>{i*600}mm</div>}
+                  </div>
+                ))}
+                <div style={{ position:"absolute", top:7, left:10, fontSize:8, color:"rgba(70,48,32,0.55)", letterSpacing:2, textTransform:"uppercase", pointerEvents:"none" }}>
+                  {(roomW/1000).toFixed(1)}m × {(WALL_H_MM/1000).toFixed(1)}m
+                </div>
+                {units.length===0 && (
+                  <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, pointerEvents:"none" }}>
+                    <HWHLogo size={isPhone?30:44}/>
+                    <div style={{ fontSize:isPhone?9:11, color:"rgba(44,33,26,0.12)", letterSpacing:2, textTransform:"uppercase", marginTop:4, textAlign:"center" }}>
+                      {isMobile ? "Tap + below to add cabinets" : "Drag cabinets onto the wall"}
+                    </div>
+                  </div>
+                )}
+                {units.map(unit => (
+                  <div key={unit.id}
+                    onPointerDown={e=>unitPointerDown(e,unit)}
+                    style={{ position:"absolute", left:unit.xMm*pxPerMm, top:unitTop(unit), width:unit.width*pxPerMm, height:unit.height*pxPerMm, cursor:drag?.unitId===unit.id?"grabbing":"grab", zIndex:selected===unit.id?20:5, touchAction:"none" }}
+                  >
+                    {unit.type==="appliance"
+                      ? <ApplianceSVG unit={unit} pxPerMm={pxPerMm} selected={selected===unit.id}/>
+                      : <CabinetSVG unit={unit} pxPerMm={pxPerMm} selected={selected===unit.id} ctColour={matCtColour}/>}
+                    {selected===unit.id && unit.type==="corner" && (
+                      <button
+                        onPointerDown={e=>e.stopPropagation()}
+                        onClick={e=>{ e.stopPropagation(); setUnits(p=>p.map(u=>u.id===unit.id?{...u,rotation:((u.rotation||0)+1)%4}:u)); }}
+                        title="Rotate 90°"
+                        style={{ position:"absolute", top:4, right:4, background:C.orange, color:C.white, border:"none", borderRadius:4, width:26, height:26, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, fontWeight:"bold", boxShadow:"0 2px 6px rgba(0,0,0,0.5)", zIndex:30 }}
+                      >↻</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ width:"100%", height:2, background:`linear-gradient(90deg,${C.gold},${C.orange})`, borderRadius:"0 0 2px 2px", flexShrink:0 }}/>
+
+            {/* Mobile: open panel button */}
+            {isMobile && (
+              <div style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:90, display:"flex", flexShrink:0, boxShadow:"0 -2px 16px rgba(44,33,26,0.12)", paddingBottom:"env(safe-area-inset-bottom,0px)" }}>
+                <div style={{ display:"flex", alignItems:"stretch", background:C.panel, borderTop:`1px solid ${C.border}`, flex:1, minWidth:0 }}>
+                  {[["layout","①"],["materials","②"],["finish","③"]].map(([p,num])=>(
+                    <button key={p} onClick={()=>setPhase(p)} style={{ flex:1, padding:"12px 4px", border:"none", borderRight:`1px solid ${C.border}`, background:phase===p?C.orange+"18":"transparent", color:phase===p?C.orange:C.sub, fontSize:11, fontWeight:"bold", fontFamily:"inherit", cursor:"pointer" }}>{num}</button>
+                  ))}
+                </div>
+                <button onClick={()=>setPanelOpen(true)} style={{ background:C.orange, color:C.white, border:"none", padding:"12px 20px", cursor:"pointer", fontSize:12, fontWeight:"bold", letterSpacing:1, textTransform:"uppercase", fontFamily:"inherit", minWidth:130, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+                  {phase==="layout"?"＋ Cabinets":phase==="materials"?"⚙ Materials":"🎨 Finishes"}
+                </button>
+              </div>
+            )}
+          </main>
+
+        {/* ── Mobile bottom sheet panel ── */}
+        {isMobile && panelOpen && (
+          <>
+            {/* Backdrop */}
+            <div onClick={()=>setPanelOpen(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:100 }}/>
+            {/* Sheet */}
+            <div style={{
+              position:"fixed", left:0, right:0, bottom:0,
+              background:C.panel, borderTop:`3px solid ${C.orange}`,
+              borderRadius:"16px 16px 0 0",
+              zIndex:101, maxHeight:"82vh", display:"flex", flexDirection:"column",
+              boxShadow:"0 -8px 40px rgba(0,0,0,0.7)",
+            }}>
+              {/* Sheet handle + header */}
+              <div style={{ padding:"12px 16px 8px", borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
+                {/* Drag handle */}
+                <div style={{ width:40, height:4, borderRadius:2, background:C.border, margin:"0 auto 10px" }}/>
+
+                <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                  <div style={{ fontSize:11, letterSpacing:2, color:C.orange, textTransform:"uppercase" }}>
+                    {phase==="layout" ? "① Add Cabinets" : phase==="materials" ? "② Materials" : "③ Finishes"}
+                  </div>
+                  <button onClick={()=>setPanelOpen(false)} style={{ marginLeft:"auto", background:"none", border:"none", color:C.sub, fontSize:20, cursor:"pointer", padding:"8px 12px", minWidth:44, minHeight:44, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                </div>
+
+                {/* ── Unit switcher — only shown in finish phase ── */}
+                {phase === "finish" && units.length > 0 && (
+                  <div style={{ marginTop:10, display:"flex", gap:6, overflowX:"auto", paddingBottom:2 }}>
+                    {units.map((u, i) => {
+                      const ct      = CARCASS_TYPES.find(c => c.type===u.type && c.width===u.width);
+                      const isDrawer = u.type === "drawer";
+                      const isSel   = selected === u.id;
+                      const shortLabel = isDrawer ? `Drw ${u.width}` : ct?.label?.replace(" Unit","").replace(" Cabinet","").replace(" — "," ") + ` ${u.width}`;
+                      return (
+                        <button key={u.id} onClick={()=>setSelected(u.id)} style={{
+                          flexShrink:0,
+                          padding:"6px 10px", borderRadius:20, cursor:"pointer",
+                          border: isSel ? `1.5px solid ${C.orange}` : `1px solid ${C.border}`,
+                          background: isSel ? C.orange+"22" : "rgba(255,255,255,0.04)",
+                          color: isSel ? C.white : "#666",
+                          fontSize:10, fontFamily:"inherit", whiteSpace:"nowrap",
+                          display:"flex", alignItems:"center", gap:5,
+                        }}>
+                          <div style={{ width:10, height:10, borderRadius:2, background:finishBg(u.finish), flexShrink:0, border:`1px solid ${C.border}` }}/>
+                          {shortLabel}
+                          {isDrawer && <span style={{ fontSize:8, color: isSel ? C.gold : "#444" }}>⇒</span>}
+                          {!isDrawer && <span style={{ fontSize:8, color: isSel ? C.gold : "#444" }}>⬡</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Sheet content — reuses existing panels */}
+              <div style={{ flex:1, overflowY:"auto" }}>
+                {phase === "materials"
+                  ? <MaterialsPanel
+                      materials={materials} setMaterials={setMaterials}
+                      onNext={()=>{ setPanelOpen(false); goToFinish(); }}
+                      onBack={()=>{ setPanelOpen(false); setPhase("layout"); }}
+                    />
+                  : <LeftPanel
+                      phase={phase} units={units} selected={selected}
+                      setSelected={setSelected} setUnits={setUnits}
+                      onClearAll={()=>{setUnits([]);setSelected(null);}}
+                      onPaletteDragStart={paletteDragStart}
+                      onTapAdd={c=>{ tapAdd(c); setPanelOpen(false); }}
+                      totalFloor={totalFloor}
+                      onNext={phase==="layout"
+                        ? ()=>{ setPanelOpen(false); goToMaterials(); }
+                        : ()=>{ setPanelOpen(false); setShowQuote(true); }
+                      }
+                    />
+                }
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Quote modal */}
+      {showQuote && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", display:"flex", alignItems:isPhone?"flex-end":"center", justifyContent:"center", zIndex:300 }}>
+          <div style={{ background:C.white, border:`2px solid ${C.orange}`, borderRadius:isPhone?"16px 16px 0 0":10, padding:isPhone?"20px 16px":26, width:isPhone?"100%":430, maxWidth:"100vw", maxHeight:isPhone?"92vh":"88vh", overflowY:"auto", marginTop:isPhone?"auto":0 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:18, paddingBottom:14, borderBottom:`1px solid ${C.border}` }}>
+              <HWHLogo size={26}/>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:14, fontWeight:"bold" }}>Request a Quote</div>
+                <div style={{ fontSize:9, color:C.orange, letterSpacing:2, textTransform:"uppercase" }}>HWH Designs · Custom Carpentry</div>
+              </div>
+              <button onClick={()=>setShowQuote(false)} style={{ background:"none", border:"none", color:C.sub, cursor:"pointer", fontSize:20 }}>✕</button>
+            </div>
+
+            {quoteSent ? (
+              <div style={{ textAlign:"center", padding:"24px 0" }}>
+                <div style={{ width:56, height:56, borderRadius:"50%", background:C.orange, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 14px", fontSize:22 }}>✓</div>
+                <div style={{ fontSize:15, marginBottom:8, fontWeight:"bold" }}>Quote Request Sent!</div>
+                <div style={{ fontSize:11, color:"#9A8878", marginBottom:16 }}>Email delivered to kim@hwhdesigns.co.za</div>
+                <div style={{ background:"#1A3A1A", border:"1px solid #2D6A2D", borderRadius:8, padding:"12px 16px", display:"inline-flex", alignItems:"center", gap:10 }}>
+                  <span style={{ fontSize:18 }}>💬</span>
+                  <div style={{ textAlign:"left" }}>
+                    <div style={{ fontSize:11, color:"#5DBF5D", fontWeight:"bold" }}>WhatsApp opened</div>
+                    <div style={{ fontSize:9, color:"#4A8A4A" }}>Tap Send to notify Kim directly</div>
+                  </div>
+                </div>
+              </div>
+            ) : (<>
+              <div style={{ marginBottom:10 }}>
+                <label style={LBL}>Full Name</label>
+                <input value={cName} onChange={e=>setCName(e.target.value)} placeholder="Jane Smith" style={INP}/>
+              </div>
+              <div style={{ marginBottom:10 }}>
+                <label style={LBL}>Email Address</label>
+                <input value={cEmail} onChange={e=>setCEmail(e.target.value)} placeholder="jane@example.com" style={INP}/>
+              </div>
+              <div style={{ marginBottom:16 }}>
+                <label style={LBL}>Phone Number</label>
+                <input value={cPhone} onChange={e=>setCPhone(e.target.value)} placeholder="+27 11 000 0000" style={INP}/>
+              </div>
+
+              <div style={{ background:"rgba(44,33,26,0.04)", borderRadius:6, padding:12, marginBottom:16, border:`1px solid ${C.border}` }}>
+                <div style={{ fontSize:8, letterSpacing:2, color:C.orange, textTransform:"uppercase", marginBottom:8 }}>
+                  Specification — {bom.length} unit{bom.length!==1?"s":""}
+                </div>
+                {bom.length===0
+                  ? <div style={{ color:C.text, fontSize:11 }}>No cabinets placed.</div>
+                  : bom.map((item,i)=>(
+                    <div key={i} style={{ padding:"5px 0", borderBottom:`1px solid ${C.border}33` }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:C.text }}>
+                        <span>{item.label} · <span style={{color:C.gold}}>{item.width}mm</span>{item.rot?` · ${item.rot}`:""}</span>
+                        <span style={{ color:C.sub }}>{item.finish}</span>
+                      </div>
+                      <div style={{ display:"flex", gap:12, marginTop:2 }}>
+                        {item.hasDoors && (
+                          <span style={{ fontSize:8, color:C.sub }}>
+                            ⬡ {item.hinges} hinge{item.hinges!==1?"s":""} · {item.hingeLabel}
+                          </span>
+                        )}
+                        {item.hasDrawers && (
+                          <span style={{ fontSize:8, color:C.sub }}>
+                            ⇒ {item.drawers} runner pair{item.drawers!==1?"s":""} · {item.runnerLabel}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                }
+                <div style={{ marginTop:10, paddingTop:8, borderTop:`1px solid ${C.border}` }}>
+                  <div style={{ fontSize:8, letterSpacing:2, color:C.orange, textTransform:"uppercase", marginBottom:6 }}>Run Metres</div>
+                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:C.text, padding:"3px 0" }}>
+                    <span style={{color:"#777"}}>Floor run</span>
+                    <span style={{color:C.gold, fontWeight:"bold"}}>{(totalFloor/1000).toFixed(2)}m</span>
+                  </div>
+                  {totalWall > 0 && (
+                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:C.text, padding:"3px 0" }}>
+                      <span style={{color:"#777"}}>Wall cabinet run</span>
+                      <span style={{color:C.gold, fontWeight:"bold"}}>{(totalWall/1000).toFixed(2)}m</span>
+                    </div>
+                  )}
+                  {totalCtRun > 0 && (
+                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:C.text, padding:"3px 0" }}>
+                      <span style={{color:"#777"}}>Countertop run</span>
+                      <span style={{color:C.gold, fontWeight:"bold"}}>{(totalCtRun/1000).toFixed(2)}m</span>
+                    </div>
+                  )}
+                  {totalFillerRun > 0 && (
+                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:C.text, padding:"3px 0" }}>
+                      <span style={{color:"#777"}}>Filler strip run</span>
+                      <span style={{color:C.gold}}>{(totalFillerRun/1000).toFixed(2)}m</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Fittings totals */}
+                {(totalHinges > 0 || totalRunners > 0) && (
+                  <div style={{ marginTop:10, paddingTop:8, borderTop:`1px solid ${C.border}` }}>
+                    <div style={{ fontSize:8, letterSpacing:2, color:C.orange, textTransform:"uppercase", marginBottom:6 }}>Fittings Summary</div>
+                    {totalHingesStd > 0 && (
+                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, color:"#9A8878", padding:"2px 0" }}>
+                        <span>Standard Hinges</span><span style={{color:C.gold}}>× {totalHingesStd}</span>
+                      </div>
+                    )}
+                    {totalHingesSoft > 0 && (
+                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, color:"#9A8878", padding:"2px 0" }}>
+                        <span>Soft-Close Hinges</span><span style={{color:C.gold}}>× {totalHingesSoft}</span>
+                      </div>
+                    )}
+                    {totalHinges > 0 && (
+                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:C.text, padding:"3px 0", borderTop:`1px solid ${C.border}33`, marginTop:2 }}>
+                        <span style={{fontWeight:"bold"}}>Total Hinges</span><span style={{color:C.gold,fontWeight:"bold"}}>× {totalHinges}</span>
+                      </div>
+                    )}
+                    {totalRunnersStd > 0 && (
+                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, color:"#9A8878", padding:"2px 0", marginTop:4 }}>
+                        <span>Standard Runner Pairs</span><span style={{color:C.gold}}>× {totalRunnersStd}</span>
+                      </div>
+                    )}
+                    {totalRunnersSoft > 0 && (
+                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, color:"#9A8878", padding:"2px 0" }}>
+                        <span>Soft-Close Runner Pairs</span><span style={{color:C.gold}}>× {totalRunnersSoft}</span>
+                      </div>
+                    )}
+                    {totalRunners > 0 && (
+                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:C.text, padding:"3px 0", borderTop:`1px solid ${C.border}33`, marginTop:2 }}>
+                        <span style={{fontWeight:"bold"}}>Total Runner Pairs</span><span style={{color:C.gold,fontWeight:"bold"}}>× {totalRunners}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Materials summary */}
+                {(matCtType || matCtColour || matCarcass) && (
+                  <div style={{ marginTop:12, paddingTop:10, borderTop:`1px solid ${C.border}` }}>
+                    <div style={{ fontSize:8, letterSpacing:2, color:C.orange, textTransform:"uppercase", marginBottom:8 }}>Materials</div>
+                    {matCarcass && (
+                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:C.text, padding:"3px 0" }}>
+                        <span style={{color:"#777"}}>Carcass build</span>
+                        <span style={{color:C.gold}}>{matCarcass.label}</span>
+                      </div>
+                    )}
+                    {matCtType && (
+                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:C.text, padding:"3px 0" }}>
+                        <span style={{color:"#777"}}>Countertop type</span>
+                        <span style={{color:C.gold}}>{matCtType.label}</span>
+                      </div>
+                    )}
+                    {matCtColour && (
+                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:C.text, padding:"3px 0" }}>
+                        <span style={{color:"#777"}}>Countertop colour</span>
+                        <span style={{color:C.gold}}>{matCtColour.label}</span>
+                      </div>
+                    )}
+                    {matCarcass && matCtType && (
+                      <div style={{ marginTop:6, padding:"6px 8px", background: materials.carcass==="solid"&&materials.ctType==="marble" ? C.orange+"22" : materials.carcass==="solid"||materials.ctType==="marble" ? C.gold+"15" : "rgba(255,255,255,0.03)", borderRadius:4, fontSize:9, color: materials.carcass==="solid"&&materials.ctType==="marble" ? C.orange : materials.carcass==="solid"||materials.ctType==="marble" ? C.gold : "#555" }}>
+                        {(materials.carcass==="solid" && ["marble","quartz"].includes(materials.ctType)) ? "★ Premium tier" : (materials.carcass==="solid" || ["marble","quartz"].includes(materials.ctType)) ? "◆ Mid-range tier" : "● Standard tier"}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Job total */}
+              {jobTotal !== null && (
+                <div style={{ margin:"0 0 14px", padding:"14px 16px", background:`linear-gradient(135deg,${C.orange}22,${C.gold}11)`, border:`1.5px solid ${C.orange}`, borderRadius:8 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                    <div>
+                      <div style={{ fontSize:9, letterSpacing:2, color:C.orange, textTransform:"uppercase" }}>Estimated Total</div>
+                      <div style={{ fontSize:8, color:C.sub, marginTop:2 }}>Excl. VAT · labour & installation quoted separately</div>
+                    </div>
+                    <div style={{ fontSize:22, fontWeight:"bold", color:C.gold }}>
+                      R {jobTotal.toLocaleString("en-ZA")}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {quoteError && (
+                <div style={{ marginBottom:10, padding:"10px 12px", background:"rgba(200,50,50,0.15)", border:"1px solid rgba(200,50,50,0.4)", borderRadius:6, fontSize:10, color:"#E08080" }}>
+                  {quoteError}
+                </div>
+              )}
+
+              <button
+                onClick={handleSubmitQuote}
+                disabled={!cName||!cEmail||units.length===0||quoteSending}
+                style={{ background:C.orange, color:C.white, border:"none", borderRadius:6, width:"100%", padding:13, fontSize:12, fontWeight:"bold", letterSpacing:2, textTransform:"uppercase", cursor:"pointer", fontFamily:"inherit", opacity:(!cName||!cEmail||units.length===0||quoteSending)?0.45:1, display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                {quoteSending
+                  ? <><span style={{ fontSize:14, animation:"spin 1s linear infinite" }}>⟳</span> Sending…</>
+                  : <><span>📧</span> Submit & Notify via WhatsApp</>
+                }
+              </button>
+              <div style={{ marginTop:8, fontSize:9, color:C.text, textAlign:"center", lineHeight:1.6 }}>
+                Sends spec to <span style={{color:C.orange}}>kim@hwhdesigns.co.za</span> · Opens WhatsApp to +27 82 889 9787
+              </div>
+            </>)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const sBtn = (bg, color) => ({ background:bg, color, border:`1px solid ${color}44`, borderRadius:4, padding:"7px 8px", cursor:"pointer", fontSize:9, letterSpacing:1, textTransform:"uppercase", fontFamily:"inherit", width:"100%" });
+const ZB   = { background:"none", border:"none", color:"#A09080", cursor:"pointer", fontSize:15, padding:"0 4px", lineHeight:1 };
+const LBL  = { fontSize:9, letterSpacing:2, color:"#D96339", textTransform:"uppercase", display:"block", marginBottom:4 };
+const INP  = { width:"100%", padding:"9px 11px", boxSizing:"border-box", background:"#F5F2EE", border:`1px solid ${C.border}`, borderRadius:5, color:C.text, fontSize:12, fontFamily:"inherit" };
